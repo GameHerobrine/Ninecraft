@@ -280,7 +280,7 @@ static void set_ninecraft_size(int width, int height) {
         glClear(GL_DEPTH_BUFFER_BIT);
         minecraft_set_size(ninecraft_app, width, height);
         // Scaling fix
-        size_t screen_offset;
+        /*size_t screen_offset;
         if (version_id == version_id_0_8_1) {
             screen_offset = NINECRAFTAPP_SCREEN_OFFSET_0_8_1;
         } else if (version_id == version_id_0_8_0) {
@@ -307,7 +307,7 @@ static void set_ninecraft_size(int width, int height) {
         void *screen = *(void **)(ninecraft_app + screen_offset);
         if (screen) {
             ((void (*)(void *, int, int))internal_dlsym(handle, "_ZN6Screen7setSizeEii"))(screen, width * 0.5f, height * 0.5f);
-        }
+        }*/
     }
 }
 
