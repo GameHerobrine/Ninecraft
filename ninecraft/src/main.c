@@ -367,7 +367,20 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
             }
         }
     } else {
+
         int game_keycode = getGameKeyCode(key);
+
+
+
+        if(key >= GLFW_KEY_1 && key <= GLFW_KEY_8 && version_id == version_id_0_8_1){
+        	int slot = 8 - (GLFW_KEY_8 - key + 1);
+        	int player = *(int*)(((int)ninecraft_app) + 3168);
+        	int inv = *(int*)(player + 3244);
+        	void* fn = internal_dlsym(handle, "_ZN9Inventory10selectSlotEi");
+        	((void (*) (int, int)) fn)(inv, slot);
+        	return;
+        }
+
         if (mouse_pointer_hidden && key == GLFW_KEY_LEFT_SHIFT) {
             if (action == GLFW_PRESS) {
                 controller_states[0] = 1;
