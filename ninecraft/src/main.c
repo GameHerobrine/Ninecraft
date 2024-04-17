@@ -381,6 +381,18 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
         	return;
         }
 
+        if(key == GLFW_KEY_Q && version_id == version_id_0_8_1){
+        	int player = *(int*)(((int)ninecraft_app) + 3168);
+        	int inv = *(int*)(player + 3244);
+        	int slot = *(int*)(inv+40);
+
+        	if(slot <= 8){
+        		void* fn = internal_dlsym(handle, "_ZN16FillingContainer8dropSlotEibb");
+        		((void (*) (int, int, char, char)) fn)(inv, slot, 0, 0);
+        	}
+        }
+
+
         if (mouse_pointer_hidden && key == GLFW_KEY_LEFT_SHIFT) {
             if (action == GLFW_PRESS) {
                 controller_states[0] = 1;
