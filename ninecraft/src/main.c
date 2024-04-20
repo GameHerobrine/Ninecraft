@@ -133,6 +133,8 @@ int mouseToGameKeyCode(int keyCode) {
         return MCKEY_PLACE;
     }
 }
+bool additionalBuildChecks = 0;
+unsigned int lastBuiltTick = 0;
 
 static void mouse_click_callback(GLFWwindow *window, int button, int action, int mods) {
     double xpos, ypos;
@@ -150,6 +152,16 @@ static void mouse_click_callback(GLFWwindow *window, int button, int action, int
         }
     } else {
         int game_keycode = mouseToGameKeyCode(button);
+
+
+        if(version_id == version_id_0_8_1 && game_keycode == MCKEY_PLACE){ //fix usage of bows, egg and snowball items
+        	if(action == GLFW_PRESS) {
+        		additionalBuildChecks = 1;
+        		int placeActionTimeout = *(int*)((int)ninecraft_app + 3332);
+        		if(!placeActionTimeout) lastBuiltTick = *(unsigned int*)(ninecraft_app + 3336);
+        	}
+        	else if(action == GLFW_RELEASE) additionalBuildChecks = 0;
+        }
 
         if (action == GLFW_PRESS) {
             keyboard_feed(game_keycode, 1);
@@ -1382,6 +1394,29 @@ int main(int argc, char **argv) {
             controller_y_stick[1] = (float)(y_cam - 180.0) * 0.0055555557;
             controller_x_stick[1] = ((float)((x_cam - 483.0)) * 0.0020703934);
         }
+
+        if(additionalBuildChecks){
+        	if(version_id == version_id_0_8_1){
+        		int placeActionTimeout = *(int*)((int)ninecraft_app + 3332);
+
+        		if(placeActionTimeout){
+        			int tickDiff = *(unsigned int*)(ninecraft_app + 3336) - lastBuiltTick;
+
+        			if(tickDiff > 8){
+        				*(int*)((int)ninecraft_app + 3332) = 0;
+        				int state = glfwGetMouseButton(_window, GLFW_MOUSE_BUTTON_RIGHT);
+        				if (state == GLFW_PRESS)
+        				{
+        					mouse_click_callback(_window, GLFW_MOUSE_BUTTON_RIGHT, state, 0);
+        				}
+
+        			}
+
+        		}
+
+        	}
+        }
+
         if (version_id >= version_id_0_10_0) {
             minecraft_update(ninecraft_app);
         } else {
