@@ -332,6 +332,15 @@ static void resize_callback(GLFWwindow *window, int width, int height) {
 }
 bool chatJustOpened = 0;
 static void char_callback(GLFWwindow *window, unsigned int codepoint) {
+
+	if(version_id == version_id_0_9_5){
+		//*(char*)((int)ninecraft_app + 3316) = 1;
+		int options = (int)ninecraft_app + 56;
+		//*(char*)(options + 262) ^= 1;
+		*(char*)(options + 262) ^= 1;
+		//printf("hiuwu %d\n", *(char*)(options + 262), );
+	}
+
     if (platform.is_keyboard_visible) {
     	if(chatJustOpened){
     		chatJustOpened = false;
@@ -773,11 +782,50 @@ void missing_hook() {
 #endif
 }
 
+int currentlyConnectedGamepad;
+void controller_callback(int jid, int event)
+{
+	printf("%d", event);
+    if (event == GLFW_CONNECTED)
+    {
+    	currentlyConnectedGamepad = jid;
+    }
+    else if (event == GLFW_DISCONNECTED)
+    {
+
+    }
+}
+
 ninecraft_options_t options = {
     .options = NULL,
     .length = 0,
     .capasity = 0
 };
+GLFWgamepadstate prevState;
+GLFWgamepadstate state;
+
+typedef struct{
+	int vtable; //4
+	double noidea0; //8
+	int noidea1; //4
+	int stick; //4
+	int noidea2; //4
+	int noidea3; //4
+	int noidea4; //4
+} ControllerTurnInput; //4+8=12+4+4=20+4+4+4=32
+
+float tdlt[2];
+ControllerTurnInput inp1;
+ControllerTurnInput inp2;
+ControllerTurnInput inp3;
+float* getTurnDelta(int me){
+	printf("getting turn delta\n");
+	tdlt[0] = 1.0f;
+	tdlt[1] = 1.0f;
+	return tdlt;
+}
+
+
 
 int main(int argc, char **argv) {
     struct stat st = {0};
@@ -1387,7 +1435,22 @@ int main(int argc, char **argv) {
     } else if (version_id == version_id_0_1_0) {
         minecraft_isgrabbed_offset = MINECRAFT_ISGRABBED_OFFSET_0_1_0;
     }
+    bool useController = 0;
+    if(version_id == version_id_0_9_5){
+    	glfwSetJoystickCallback(controller_callback);
+    	char* useControllerr = internal_dlsym(handle, "_ZN9Minecraft13useControllerEv");
+    	*useControllerr = 0x09; //or eax, eax -> return 1;
+    	useController = 1;
+    	unsigned char* useTouchScreen = internal_dlsym(handle, "_ZN9Minecraft14useTouchscreenEv");
+    	*useTouchScreen = 0x31;
+    	*(useTouchScreen + 1) = 0xC0;
+    	*(useTouchScreen + 2) = 0xC3;
+    	void* fn = internal_dlsym(handle, "_ZN9Minecraft12_reloadInputEv");
+    	((void (*) (int)) fn)(ninecraft_app);
+    	//x86_detour(internal_dlsym(handle,"_ZN19ControllerTurnInput12getTurnDeltaEv"), &getTurnDelta, 1); //
+    }
 
+    int key = 0;
     while (true) {
         if (((bool *)ninecraft_app)[minecraft_isgrabbed_offset]) {
             if (!mouse_pointer_hidden) {
@@ -1403,7 +1466,109 @@ int main(int argc, char **argv) {
             controller_y_stick[1] = (float)(y_cam - 180.0) * 0.0055555557;
             controller_x_stick[1] = ((float)((x_cam - 483.0)) * 0.0020703934);
         }
-
+        
+        if(useController){
+        	
+            if (glfwGetGamepadState(currentlyConnectedGamepad, &state))
+            {
+            	
+            	if(abs(state.axes[GLFW_GAMEPAD_AXIS_RIGHT_X]) <= 0.0156) state.axes[GLFW_GAMEPAD_AXIS_RIGHT_X] = 0;
+            	if(abs(state.axes[GLFW_GAMEPAD_AXIS_RIGHT_Y]) <= 0.0156) state.axes[GLFW_GAMEPAD_AXIS_RIGHT_Y] = 0;
+            	
+            	if(abs(state.axes[GLFW_GAMEPAD_AXIS_LEFT_X]) <= 0.0156) state.axes[GLFW_GAMEPAD_AXIS_LEFT_X] = 0;
+            	if(abs(state.axes[GLFW_GAMEPAD_AXIS_LEFT_Y]) <= 0.0156) state.axes[GLFW_GAMEPAD_AXIS_LEFT_Y] = 0;
+            	
+            	void* stickInput = internal_dlsym(handle, "_ZN10Controller4feedEiiff");
+            	((void (*) (int, int, float, float)) stickInput)(1, 1, state.axes[GLFW_GAMEPAD_AXIS_LEFT_X], -state.axes[GLFW_GAMEPAD_AXIS_LEFT_Y]);
+            	
+            	void* trigInput = internal_dlsym(handle, "_ZN10Controller11feedTriggerEif");
+            	
+            	
+            	
+            	
+            	int xM = state.axes[GLFW_GAMEPAD_AXIS_RIGHT_X]*10;
+            	int yM = state.axes[GLFW_GAMEPAD_AXIS_RIGHT_Y]*10;
+            	
+            	short mousePosX = last_mouse_x+xM;
+            	short mousePosY = last_mouse_y+yM;
+            	mouse_device_feed_0_6(internal_dlsym(handle, "_ZN5Mouse9_instanceE"), 0, 0, //TODO better way
+            			(short) mousePosX, (short)mousePosY, 
+						(short)(!ignore_relative_motion ? (mousePosX - last_mouse_x) : 0), 
+						(short)(!ignore_relative_motion ? (mousePosY - last_mouse_y) : 0));
+				ignore_relative_motion = false;
+				last_mouse_x = mousePosX;
+				last_mouse_y = mousePosY;
+				((void (*) (int, float)) trigInput)(1, state.axes[GLFW_GAMEPAD_AXIS_LEFT_TRIGGER]);
+				((void (*) (int, float)) trigInput)(2, state.axes[GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER]);
+				
+            	for(int i = 0; i <= GLFW_GAMEPAD_BUTTON_LAST; ++i){
+            		bool pressed = state.buttons[i];
+            		if(prevState.buttons[i] != state.buttons[i]){
+            			if(i == GLFW_GAMEPAD_BUTTON_A){
+            				keyboard_feed(13, pressed); //TODO better way if exists
+            				keyboard_feed(23, pressed);
+            			}
+            			//21 - open chat, 22 - open chat
+            			if(i == GLFW_GAMEPAD_BUTTON_DPAD_UP && !platform.is_keyboard_visible){
+            				keyboard_feed(19, pressed);
+            			}
+            			if(i == GLFW_GAMEPAD_BUTTON_DPAD_DOWN && !platform.is_keyboard_visible){
+            				keyboard_feed(20, pressed);
+            			}
+            			if(pressed){
+            				printf("%d\n", i);
+            			}
+            			if(i == GLFW_GAMEPAD_BUTTON_LEFT_THUMB && !platform.is_keyboard_visible){
+            				//unused?
+            			}
+            			
+            			if(i == GLFW_GAMEPAD_BUTTON_RIGHT_THUMB && !platform.is_keyboard_visible){
+            				//unused x2?
+            			}
+            			
+            			if(i == GLFW_GAMEPAD_BUTTON_LEFT_BUMPER && !platform.is_keyboard_visible){
+            				keyboard_feed(102, pressed);
+            			}
+            			if(i == GLFW_GAMEPAD_BUTTON_RIGHT_BUMPER && !platform.is_keyboard_visible){
+            				keyboard_feed(103, pressed);
+            			}
+            			
+            			if(i == GLFW_GAMEPAD_BUTTON_DPAD_LEFT && !platform.is_keyboard_visible){
+            				keyboard_feed(21, pressed); //idk 21 or 22
+            			}
+            			if(i == GLFW_GAMEPAD_BUTTON_DPAD_RIGHT && !platform.is_keyboard_visible){
+            				keyboard_feed(22, pressed); //idk 21 or 22
+            			}
+            			
+            			if(i == GLFW_GAMEPAD_BUTTON_Y && !platform.is_keyboard_visible){
+            				int* guiscreen = *(int**)((int)ninecraft_app + 3200);
+            				printf("%d\n", guiscreen);
+            				if(guiscreen) keyboard_feed(69, pressed);
+            				else keyboard_feed(100, pressed);
+            			}
+            			
+            			if(i == GLFW_GAMEPAD_BUTTON_START && !platform.is_keyboard_visible){
+            				keyboard_feed(255, pressed);
+            			}
+            			
+            			if(i == GLFW_GAMEPAD_BUTTON_X && !platform.is_keyboard_visible){
+            				keyboard_feed(81, pressed);
+            			}
+            			if(i == GLFW_GAMEPAD_BUTTON_B && !platform.is_keyboard_visible){
+            				keyboard_feed(4, pressed);
+            				//keyboard_feed(key, pressed);
+            				//printf("%d press\n", key);
+            				//if(!pressed) ++key;
+            			}
+            			
+            		}
+            	}
+            }
+            prevState = state;
+        }
+        
+        
+        
         if(additionalBuildChecks){
         	if(version_id == version_id_0_8_1){
         		int placeActionTimeout = *(int*)((int)ninecraft_app + 3332);
@@ -1431,7 +1596,6 @@ int main(int argc, char **argv) {
         } else {
             ninecraft_app_update(ninecraft_app);
         }
-
         if (!mouse_pointer_hidden) {
             if (version_id >= version_id_0_6_0 && version_id <= version_id_0_9_5) {
                 float inv_gui_scale = *((float *)internal_dlsym(handle, "_ZN3Gui11InvGuiScaleE"));
