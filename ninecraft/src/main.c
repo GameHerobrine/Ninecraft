@@ -330,9 +330,13 @@ static void resize_callback(GLFWwindow *window, int width, int height) {
         set_ninecraft_size(width, height);
     }
 }
-
+bool chatJustOpened = 0;
 static void char_callback(GLFWwindow *window, unsigned int codepoint) {
-    if (platform.is_keyboard_visible) {    
+    if (platform.is_keyboard_visible) {
+    	if(chatJustOpened){
+    		chatJustOpened = false;
+    		return;
+    	}
         if (version_id >= version_id_0_6_0 && version_id <= version_id_0_7_1) {
             keyboard_feed_text_0_6_0((char)codepoint);
         } else if (version_id >= version_id_0_7_2) {
@@ -404,7 +408,6 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
         	}
         }
 
-
         if (mouse_pointer_hidden && key == GLFW_KEY_LEFT_SHIFT) {
             if (action == GLFW_PRESS) {
                 controller_states[0] = 1;
@@ -436,6 +439,13 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
                     return;
                 }
                 ((void (*)(void *, int))internal_dlsym(handle, "_ZN13ScreenChooser9setScreenE8ScreenId"))(ninecraft_app + minecraft_screenchooser_offset, 7);
+                if(version_id == version_id_0_8_1){
+                	printf("hi\n");
+                	int** guiScreen = *(int***)((int)ninecraft_app + 3184);
+                	chatJustOpened = 1;
+                	void* buttonClicked = (void*) guiScreen[0][30];
+                	((void (*)(int**, int*)) buttonClicked)(guiScreen, guiScreen[24]);
+                }
             }
         } else if (version_id >= version_id_0_1_1 && key == GLFW_KEY_ESCAPE) {
             if (action == GLFW_PRESS) {
