@@ -440,9 +440,8 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
                 }
                 ((void (*)(void *, int))internal_dlsym(handle, "_ZN13ScreenChooser9setScreenE8ScreenId"))(ninecraft_app + minecraft_screenchooser_offset, 7);
                 if(version_id == version_id_0_8_1){
-                	printf("hi\n");
-                	int** guiScreen = *(int***)((int)ninecraft_app + 3184);
                 	chatJustOpened = 1;
+                	int** guiScreen = *(int***)((int)ninecraft_app + 3184);
                 	void* buttonClicked = (void*) guiScreen[0][30];
                 	((void (*)(int**, int*)) buttonClicked)(guiScreen, guiScreen[24]);
                 }
