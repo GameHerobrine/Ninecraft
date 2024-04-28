@@ -437,13 +437,8 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
         	
         	if(mouse_pointer_hidden && (key == GLFW_KEY_SPACE || key == GLFW_KEY_LEFT_SHIFT) && opt_BETTER_CREATIVE_CONTROLS.value.asbool){ //better creative controls
         		char isFlying = *(char*)(player + 3209); //player->abilities.flying
-        		if(isFlying){ //TODO wip
-        			if(key == GLFW_KEY_SPACE){
-        				flyDown = 0;
-        				flyUp = action == GLFW_PRESS;
-        			}else if(key == GLFW_KEY_LEFT_SHIFT){
-        				flyDown = action == GLFW_PRESS;
-        				flyUp = 0;
+        		if(isFlying){
+        			if(key == GLFW_KEY_LEFT_SHIFT){ //avoid sneaking
         				return;
         			}
         		}
@@ -833,17 +828,9 @@ void XperialPlayInput_tick_hook_081(int this, int player){
 	}
 	
 	XperialPlayInput_tick_real_081(this, player);
-	if(flyUp){
-		*(char*)(this + 4 + 0xB) = 1; //fly up
-	}else{
-		*(char*)(this + 4 + 0xB) = 0; //fly up
-	}
-	if(flyDown){
-		*(char*)(this + 4 + 0xC) = 1; //fly down
-	}else{
-		*(char*)(this + 4 + 0xC) = 0; //fly down
-	}
 	
+	*(char*)(this + 4 + 0xB) = glfwGetKey(_window, GLFW_KEY_SPACE) != GLFW_RELEASE;
+	*(char*)(this + 4 + 0xC) = glfwGetKey(_window, GLFW_KEY_LEFT_SHIFT) != GLFW_RELEASE;
 	if(flight){
 		*(char*)(player + 3209) = 1;
 	}
