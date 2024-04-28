@@ -180,7 +180,7 @@ static void mouse_scroll_callback(GLFWwindow *window, double xoffset, double yof
     char key_code = 0;
     if (yoffset > 0) {
         key_code = MCKEY_HOTBAR_PREVIOUS;
-        if(version_id == version_id_0_8_1){
+        if(mouse_pointer_hidden && version_id == version_id_0_8_1){
 			int player = *(int*)(((int)ninecraft_app) + 3168);
 			int inv = *(int*)(player + 3244);
 			int slotSelected = *(int*)(inv + 40);
@@ -192,7 +192,7 @@ static void mouse_scroll_callback(GLFWwindow *window, double xoffset, double yof
         }
     } else if (yoffset < 0) {
         key_code = MCKEY_HOTBAR_NEXT;
-        if(version_id == version_id_0_8_1){
+        if(mouse_pointer_hidden && version_id == version_id_0_8_1){
 			int player = *(int*)(((int)ninecraft_app) + 3168);
 			int inv = *(int*)(player + 3244);
 			int slotSelected = *(int*)(inv + 40);
@@ -414,7 +414,7 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
 
         int game_keycode = getGameKeyCode(key);
         
-        if(version_id == version_id_0_8_1){
+        if(mouse_pointer_hidden && version_id == version_id_0_8_1){
         	int player = *(int*)(((int)ninecraft_app) + 3168);
         	if(key >= GLFW_KEY_1 && key <= GLFW_KEY_8 && opt_INV_NUMBERS.value.asbool){
 				int slot = 8 - (GLFW_KEY_8 - key + 1);
@@ -435,7 +435,7 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
 				return;
         	}
         	
-        	if((key == GLFW_KEY_SPACE || key == GLFW_KEY_LEFT_SHIFT) && opt_BETTER_CREATIVE_CONTROLS.value.asbool){ //better creative controls
+        	if(mouse_pointer_hidden && (key == GLFW_KEY_SPACE || key == GLFW_KEY_LEFT_SHIFT) && opt_BETTER_CREATIVE_CONTROLS.value.asbool){ //better creative controls
         		char isFlying = *(char*)(player + 3209); //player->abilities.flying
         		if(isFlying){ //TODO wip
         			if(key == GLFW_KEY_SPACE){
