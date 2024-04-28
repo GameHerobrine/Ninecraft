@@ -50,6 +50,8 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
+#include <ninecraft/config.h>
+
 void *handle = NULL;
 GLFWwindow *_window = NULL;
 
@@ -293,34 +295,37 @@ static void set_ninecraft_size(int width, int height) {
         glClear(GL_DEPTH_BUFFER_BIT);
         minecraft_set_size(ninecraft_app, width, height);
         // Scaling fix
-        /*size_t screen_offset;
-        if (version_id == version_id_0_8_1) {
-            screen_offset = NINECRAFTAPP_SCREEN_OFFSET_0_8_1;
-        } else if (version_id == version_id_0_8_0) {
-            screen_offset = NINECRAFTAPP_SCREEN_OFFSET_0_8_0;
-        } else if (version_id == version_id_0_7_6) {
-            screen_offset = NINECRAFTAPP_SCREEN_OFFSET_0_7_6;
-        } else if (version_id == version_id_0_7_5) {
-            screen_offset = NINECRAFTAPP_SCREEN_OFFSET_0_7_5;
-        } else if (version_id == version_id_0_7_4) {
-            screen_offset = NINECRAFTAPP_SCREEN_OFFSET_0_7_4;
-        } else if (version_id == version_id_0_7_3) {
-            screen_offset = NINECRAFTAPP_SCREEN_OFFSET_0_7_3;
-        } else if (version_id == version_id_0_7_2) {
-            screen_offset = NINECRAFTAPP_SCREEN_OFFSET_0_7_2;
-        } else if (version_id == version_id_0_7_1) {
-            screen_offset = NINECRAFTAPP_SCREEN_OFFSET_0_7_1;
-        } else if (version_id == version_id_0_7_0) {
-            screen_offset = NINECRAFTAPP_SCREEN_OFFSET_0_7_0;
-        } else {
-            return;
+        if(opt_SCALING_FIX.value.asbool){
+        	size_t screen_offset;
+			if (version_id == version_id_0_8_1) {
+				screen_offset = NINECRAFTAPP_SCREEN_OFFSET_0_8_1;
+			} else if (version_id == version_id_0_8_0) {
+				screen_offset = NINECRAFTAPP_SCREEN_OFFSET_0_8_0;
+			} else if (version_id == version_id_0_7_6) {
+				screen_offset = NINECRAFTAPP_SCREEN_OFFSET_0_7_6;
+			} else if (version_id == version_id_0_7_5) {
+				screen_offset = NINECRAFTAPP_SCREEN_OFFSET_0_7_5;
+			} else if (version_id == version_id_0_7_4) {
+				screen_offset = NINECRAFTAPP_SCREEN_OFFSET_0_7_4;
+			} else if (version_id == version_id_0_7_3) {
+				screen_offset = NINECRAFTAPP_SCREEN_OFFSET_0_7_3;
+			} else if (version_id == version_id_0_7_2) {
+				screen_offset = NINECRAFTAPP_SCREEN_OFFSET_0_7_2;
+			} else if (version_id == version_id_0_7_1) {
+				screen_offset = NINECRAFTAPP_SCREEN_OFFSET_0_7_1;
+			} else if (version_id == version_id_0_7_0) {
+				screen_offset = NINECRAFTAPP_SCREEN_OFFSET_0_7_0;
+			} else {
+				return;
+			}
+			*(float *)internal_dlsym(handle, "_ZN3Gui11InvGuiScaleE") = 0.5f;
+			*(float *)internal_dlsym(handle, "_ZN3Gui8GuiScaleE") = 2.0f;
+			void *screen = *(void **)(ninecraft_app + screen_offset);
+			if (screen) {
+				((void (*)(void *, int, int))internal_dlsym(handle, "_ZN6Screen7setSizeEii"))(screen, width * 0.5f, height * 0.5f);
+			}
         }
-        *(float *)internal_dlsym(handle, "_ZN3Gui11InvGuiScaleE") = 0.5f;
-        *(float *)internal_dlsym(handle, "_ZN3Gui8GuiScaleE") = 2.0f;
-        void *screen = *(void **)(ninecraft_app + screen_offset);
-        if (screen) {
-            ((void (*)(void *, int, int))internal_dlsym(handle, "_ZN6Screen7setSizeEii"))(screen, width * 0.5f, height * 0.5f);
-        }*/
+       
     }
 }
 
@@ -390,7 +395,7 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
         
         if(version_id == version_id_0_8_1){
         	int player = *(int*)(((int)ninecraft_app) + 3168);
-        	if(key >= GLFW_KEY_1 && key <= GLFW_KEY_8){ //inv selection using 12345678
+        	if(key >= GLFW_KEY_1 && key <= GLFW_KEY_8 && opt_INV_NUMBERS.value.asbool){
 				int slot = 8 - (GLFW_KEY_8 - key + 1);
 				int inv = *(int*)(player + 3244);
 				void* fn = internal_dlsym(handle, "_ZN9Inventory10selectSlotEi");
@@ -398,7 +403,7 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
 				return;
         	}
         	
-        	if(key == GLFW_KEY_Q){ //drop using q
+        	if(key == GLFW_KEY_Q && opt_DROP_SLOT.value.asbool){ //drop using q
 				int inv = *(int*)(player + 3244);
 				int slot = *(int*)(inv+40);
 	
@@ -409,7 +414,7 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
 				return;
         	}
         	
-        	if(key == GLFW_KEY_SPACE || key == GLFW_KEY_LEFT_SHIFT){ //better creative controls
+        	if((key == GLFW_KEY_SPACE || key == GLFW_KEY_LEFT_SHIFT) && opt_BETTER_CREATIVE_CONTROLS.value.asbool){ //better creative controls
         		char isFlying = *(char*)(player + 3209); //player->abilities.flying
         		if(isFlying){ //TODO wip
         			if(key == GLFW_KEY_SPACE){
@@ -846,7 +851,9 @@ int main(int argc, char **argv) {
     if (stat("mods", &st) == -1) {
         mkdir("mods", 0700);
     }
-
+    
+    readConfigFile();
+    
     ninecraft_read_options_file(&options, "options.txt");
     ninecraft_set_default_options(&options, "options.txt");
 
