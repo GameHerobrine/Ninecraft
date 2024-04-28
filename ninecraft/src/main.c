@@ -71,6 +71,7 @@ bool mouse_pointer_hidden = false;
 
 int old_pos_x, old_pos_y, old_width, old_height;
 
+
 void *load_library(const char *name) {
 #ifdef __i386__
     char *arch = "x86";
@@ -370,6 +371,7 @@ static void char_callback(GLFWwindow *window, unsigned int codepoint) {
     }
 }
 
+bool flyDown, flyUp;
 static void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
     if (key == GLFW_KEY_F11) {
         if (action == GLFW_PRESS) {
@@ -385,28 +387,43 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
     } else {
 
         int game_keycode = getGameKeyCode(key);
-
-
-
-        if(key >= GLFW_KEY_1 && key <= GLFW_KEY_8 && version_id == version_id_0_8_1){
-        	int slot = 8 - (GLFW_KEY_8 - key + 1);
+        
+        if(version_id == version_id_0_8_1){
         	int player = *(int*)(((int)ninecraft_app) + 3168);
-        	int inv = *(int*)(player + 3244);
-        	void* fn = internal_dlsym(handle, "_ZN9Inventory10selectSlotEi");
-        	((void (*) (int, int)) fn)(inv, slot);
-        	return;
-        }
-
-        if(key == GLFW_KEY_Q && version_id == version_id_0_8_1){
-        	int player = *(int*)(((int)ninecraft_app) + 3168);
-        	int inv = *(int*)(player + 3244);
-        	int slot = *(int*)(inv+40);
-
-        	if(slot <= 8){
-        		void* fn = internal_dlsym(handle, "_ZN16FillingContainer8dropSlotEibb");
-        		((void (*) (int, int, char, char)) fn)(inv, slot, 0, 0);
+        	if(key >= GLFW_KEY_1 && key <= GLFW_KEY_8){ //inv selection using 12345678
+				int slot = 8 - (GLFW_KEY_8 - key + 1);
+				int inv = *(int*)(player + 3244);
+				void* fn = internal_dlsym(handle, "_ZN9Inventory10selectSlotEi");
+				((void (*) (int, int)) fn)(inv, slot);
+				return;
+        	}
+        	
+        	if(key == GLFW_KEY_Q){ //drop using q
+				int inv = *(int*)(player + 3244);
+				int slot = *(int*)(inv+40);
+	
+				if(slot <= 8){
+					void* fn = internal_dlsym(handle, "_ZN16FillingContainer8dropSlotEibb");
+					((void (*) (int, int, char, char)) fn)(inv, slot, 0, 0);
+				}
+				return;
+        	}
+        	
+        	if(key == GLFW_KEY_SPACE || key == GLFW_KEY_LEFT_SHIFT){ //better creative controls
+        		char isFlying = *(char*)(player + 3209); //player->abilities.flying
+        		if(isFlying){ //TODO wip
+        			if(key == GLFW_KEY_SPACE){
+        				flyDown = 0;
+        				flyUp = action == GLFW_PRESS;
+        			}else if(key == GLFW_KEY_LEFT_SHIFT){
+        				flyDown = action == GLFW_PRESS;
+        				flyUp = 0;
+        				return;
+        			}
+        		}
         	}
         }
+        
 
         if (mouse_pointer_hidden && key == GLFW_KEY_LEFT_SHIFT) {
             if (action == GLFW_PRESS) {
@@ -778,6 +795,33 @@ ninecraft_options_t options = {
     .length = 0,
     .capasity = 0
 };
+
+void (*XperialPlayInput_tick_real_081)(int, int);
+void XperialPlayInput_tick_hook_081(int this, int player){
+	bool flight = false;
+	if(*(char*)(player + 3209) && *(char*)(this + 0xf + 7)){ //isFlying && space
+		if(*(char*)(this + 0xf + 3) || *(char*)(this + 0xf + 4)){ //w || s
+			*(char*)(player + 3209) = 0; //player doesnt fly -> no vanilla checks
+			flight = true;
+		}
+	}
+	
+	XperialPlayInput_tick_real_081(this, player);
+	if(flyUp){
+		*(char*)(this + 4 + 0xB) = 1; //fly up
+	}else{
+		*(char*)(this + 4 + 0xB) = 0; //fly up
+	}
+	if(flyDown){
+		*(char*)(this + 4 + 0xC) = 1; //fly down
+	}else{
+		*(char*)(this + 4 + 0xC) = 0; //fly down
+	}
+	
+	if(flight){
+		*(char*)(player + 3209) = 1;
+	}
+}
 
 int main(int argc, char **argv) {
     struct stat st = {0};
@@ -1387,7 +1431,13 @@ int main(int argc, char **argv) {
     } else if (version_id == version_id_0_1_0) {
         minecraft_isgrabbed_offset = MINECRAFT_ISGRABBED_OFFSET_0_1_0;
     }
-
+    
+    if (version_id == version_id_0_8_1) {
+		int* vtinput = (int*)((int)internal_dlsym(handle, "_ZTV15XperiaPlayInput") + 8);
+		XperialPlayInput_tick_real_081 = vtinput[2];
+		vtinput[2] = &XperialPlayInput_tick_hook_081;
+    }
+    
     while (true) {
         if (((bool *)ninecraft_app)[minecraft_isgrabbed_offset]) {
             if (!mouse_pointer_hidden) {
