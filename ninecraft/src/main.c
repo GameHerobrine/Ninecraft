@@ -180,9 +180,30 @@ static void mouse_scroll_callback(GLFWwindow *window, double xoffset, double yof
     char key_code = 0;
     if (yoffset > 0) {
         key_code = MCKEY_HOTBAR_PREVIOUS;
+        if(version_id == version_id_0_8_1){
+			int player = *(int*)(((int)ninecraft_app) + 3168);
+			int inv = *(int*)(player + 3244);
+			int slotSelected = *(int*)(inv + 40);
+			if(slotSelected <= 0){
+				void* fn = internal_dlsym(handle, "_ZN9Inventory10selectSlotEi");
+				((void (*) (int, int)) fn)(inv, 7);
+				return;
+			}
+        }
     } else if (yoffset < 0) {
         key_code = MCKEY_HOTBAR_NEXT;
+        if(version_id == version_id_0_8_1){
+			int player = *(int*)(((int)ninecraft_app) + 3168);
+			int inv = *(int*)(player + 3244);
+			int slotSelected = *(int*)(inv + 40);
+			if(slotSelected >= 7){
+				void* fn = internal_dlsym(handle, "_ZN9Inventory10selectSlotEi");
+				((void (*) (int, int)) fn)(inv, 0);
+				return;
+			}
+        }
     }
+    
     keyboard_feed(key_code, 1);
     keyboard_feed(key_code, 0);
 }
