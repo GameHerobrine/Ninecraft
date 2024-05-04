@@ -398,6 +398,7 @@ static void char_callback(GLFWwindow *window, unsigned int codepoint) {
 }
 
 bool flyDown, flyUp;
+char keyF5 = 0;
 static void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
     if (key == GLFW_KEY_F11) {
         if (action == GLFW_PRESS) {
@@ -445,11 +446,22 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
         	}
         }
         
-
+        if(mouse_pointer_hidden && key == GLFW_KEY_F5){
+        	char b = action != GLFW_RELEASE;
+        	if(b != keyF5){
+        		keyF5 = b;
+        		if(b){
+        			void* options = (int)ninecraft_app + 60;
+					void* third_person = internal_dlsym(handle, "_ZN7Options6Option12THIRD_PERSONE");
+					void (*fn)(void*, void*, int) = internal_dlsym(handle, "_ZN7Options6toggleEPKNS_6OptionEi");
+					fn(options, third_person, keyF5); //last arg doesnt matter here
+        		}
+        	}
+        }
+        
         if (mouse_pointer_hidden && key == GLFW_KEY_LEFT_SHIFT) {
         	
         	if(!opt_TOGGLE_SHIFT.value.asbool && version_id == version_id_0_8_1){
-        		//if (action == GLFW_PRESS)
         		int player = *(int*)(((int)ninecraft_app) + 3168);
         		int moveinp = *(int*)(player + 3408);
         		*(char*)(moveinp + 14) = (action != GLFW_RELEASE);
