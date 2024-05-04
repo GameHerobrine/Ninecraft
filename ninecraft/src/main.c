@@ -447,11 +447,19 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
         
 
         if (mouse_pointer_hidden && key == GLFW_KEY_LEFT_SHIFT) {
-            if (action == GLFW_PRESS) {
-                controller_states[0] = 1;
-            } else if (action == GLFW_RELEASE) {
-                controller_states[0] = 0;
-            }
+        	
+        	if(!opt_TOGGLE_SHIFT.value.asbool && version_id == version_id_0_8_1){
+        		//if (action == GLFW_PRESS)
+        		int player = *(int*)(((int)ninecraft_app) + 3168);
+        		int moveinp = *(int*)(player + 3408);
+        		*(char*)(moveinp + 14) = (action != GLFW_RELEASE);
+        	}else{
+        		if (action == GLFW_PRESS) {
+        			controller_states[0] = 1;
+				} else if (action == GLFW_RELEASE) {
+					controller_states[0] = 0;
+				}
+        	}
         } else if (mouse_pointer_hidden && key == GLFW_KEY_T) {
             if (action == GLFW_PRESS) {
                 size_t minecraft_screenchooser_offset;

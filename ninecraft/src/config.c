@@ -23,6 +23,12 @@ ninecraft_cfg_option_t opt_SCALING_FIX = {
 	0
 };
 
+ninecraft_cfg_option_t opt_TOGGLE_SHIFT = {
+	"toggle-shift",
+	0
+};
+
+
 void writeBoolOptionTo(FILE* fp, ninecraft_cfg_option_t* option){
 	int strsize = strlen(option->name);
 	if(strsize >= 255){
@@ -42,6 +48,7 @@ void writeConfigFile(){
 	writeBoolOptionTo(file, &opt_DROP_SLOT);
 	writeBoolOptionTo(file, &opt_BETTER_CREATIVE_CONTROLS);
 	writeBoolOptionTo(file, &opt_SCALING_FIX);
+	writeBoolOptionTo(file, &opt_TOGGLE_SHIFT);
 	
 	fclose(file);
 }
@@ -61,6 +68,8 @@ void handleOption(char* name, char* value){
 		setBool(&opt_BETTER_CREATIVE_CONTROLS, value);
 	}else if(strcmp(name, opt_SCALING_FIX.name) == 0){
 		setBool(&opt_SCALING_FIX, value);
+	}else if(strcmp(name, opt_TOGGLE_SHIFT.name) == 0){
+		setBool(&opt_TOGGLE_SHIFT, value);
 	}
 	
 }
