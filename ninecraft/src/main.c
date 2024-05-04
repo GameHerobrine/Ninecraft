@@ -165,10 +165,10 @@ static void mouse_click_callback(GLFWwindow *window, int button, int action, int
         	}
         	else if(action == GLFW_RELEASE) additionalBuildChecks = 0;
         }
-
-        if (action == GLFW_PRESS) {
+        
+        if (action == GLFW_PRESS && !keyboard_states[game_keycode]) {
             keyboard_feed(game_keycode, 1);
-        } else if (action == GLFW_RELEASE) {
+        } else if (action == GLFW_RELEASE && keyboard_states[game_keycode]) {
             keyboard_feed(game_keycode, 0);
         }
     }
