@@ -837,6 +837,95 @@ ninecraft_options_t options = {
     .capasity = 0
 };
 
+void (*ChatScreen_keyPressed_real)(int, int);
+
+void ChatScreen_keyPressed_hook(int this, int key){
+	printf("hook call\n");
+	if(key == 13){ //enter
+		char* c = *(char**)(this + 84);
+		char x[16];
+		char y[16];
+		char z[16];
+		char corr = 0;
+		while(1){
+			char d = *c;
+			if(d == '.'){
+				if(c[1] == 't'){
+					if(c[2] == 'p'){
+						if(c[3] == ' '){
+							
+							int i = 0;
+							char* uwu = c + 4;
+							while(i < 16){
+								x[i] = *uwu;
+								if(x[i] == 0) goto killuwu;
+								if(x[i] == ' ') {
+									x[i] = 0;
+									break;
+								}
+								++i;
+								++uwu;
+							}
+							x[15] = 0;
+							i = 0;
+							++uwu;
+							while(i < 16){
+								y[i] = *uwu;
+								if(y[i] == 0) goto killuwu;
+								if(y[i] == ' ') {
+									y[i] = 0;
+									break;
+								}
+								++i;
+								++uwu;
+							}
+							y[15] = 0;
+							i = 0;
+							++uwu;
+							while(i < 16){
+								z[i] = *uwu;
+								if(z[i] == 0) break;
+								if(z[i] == ' ') break;
+								++i;
+								++uwu;
+							}
+							if(i < 16) z[i] = 0;
+							z[15] = 0;
+							printf("%s %s %s\n", x, y, z);
+							corr = 1;
+						}
+					}
+				}
+			}
+			break;
+		}
+		killuwu:
+		
+		if(corr){
+			int player = *(int*)(((int)ninecraft_app) + 3168);
+			
+			printf("s\n");
+			int xx = atoi(x);
+			int yy = atoi(y);
+			int zz = atoi(z);
+			
+			printf("tp to %d %d %d\n", xx, yy, zz);
+			void* setpos = internal_dlsym(handle, "_ZN6Entity6setPosEfff"); 
+			
+			((void (*) (int, float, float, float)) (setpos))(player, (float)xx, (float)yy, (float)zz);
+			
+			return;
+		}
+		
+		printf("%s\n", c);
+	}
+	ChatScreen_keyPressed_real(this, key);
+}
+
+char LiquidTile_shouldRenderFace(int, int, int, int, int){
+	return 0;
+}
+
 void (*XperialPlayInput_tick_real_081)(int, int);
 void XperialPlayInput_tick_hook_081(int this, int player){
 	bool flight = false;
@@ -1104,7 +1193,9 @@ int main(int argc, char **argv) {
     minecraft_setup_hooks(handle);
     inject_mods(handle, version_id);
     mod_loader_load_all();
-
+    
+    //
+    
     controller_states = (unsigned char *)internal_dlsym(handle, "_ZN10Controller15isTouchedValuesE");
     controller_x_stick = (float *)internal_dlsym(handle, "_ZN10Controller12stickValuesXE");
     controller_y_stick = (float *)internal_dlsym(handle, "_ZN10Controller12stickValuesYE");
@@ -1471,6 +1562,14 @@ int main(int argc, char **argv) {
 		int* vtinput = (int*)((int)internal_dlsym(handle, "_ZTV15XperiaPlayInput") + 8);
 		XperialPlayInput_tick_real_081 = vtinput[2];
 		vtinput[2] = &XperialPlayInput_tick_hook_081;
+		
+		void** chat = (void**) ((int)internal_dlsym(handle, "_ZTV10ChatScreen") + 8); 
+		ChatScreen_keyPressed_real = chat[33];
+		chat[33] = &ChatScreen_keyPressed_hook;
+		
+		void** tilevt = (int*)((int)internal_dlsym(handle, "_ZTV16LiquidTileStatic") + 8);
+		
+		//tilevt[11] = &LiquidTile_shouldRenderFace;
     }
     
     while (true) {
