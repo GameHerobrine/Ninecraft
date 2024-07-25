@@ -1098,7 +1098,18 @@ int main(int argc, char **argv) {
             return 1;
         }
     }
-
+    
+	if(version_id == version_id_0_7_6){
+		//0.7.6 x86: inv fix (it will not work in arm)
+#ifdef __arm__
+		printf("0.7.6 and arm: cant fix inv\n");
+#else
+		unsigned char* method = internal_dlsym(handle, "_ZN13ScreenChooser12createScreenE8ScreenId");
+		method[42] = 0x90; //jz      short loc_1193B8 -> nop nop -> use touch:: inv
+		method[43] = 0x90;
+#endif
+	}
+    
     multitouch_setup_hooks(handle);
     keyboard_setup_hooks(handle);
     minecraft_setup_hooks(handle);
