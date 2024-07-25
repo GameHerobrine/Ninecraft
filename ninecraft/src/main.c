@@ -1109,7 +1109,7 @@ int main(int argc, char **argv) {
     controller_x_stick = (float *)internal_dlsym(handle, "_ZN10Controller12stickValuesXE");
     controller_y_stick = (float *)internal_dlsym(handle, "_ZN10Controller12stickValuesYE");
 
-    if (version_id >= version_id_0_6_0 && version_id <= version_id_0_9_5) {
+    if (version_id > version_id_0_7_6 && version_id <= version_id_0_9_5) {
         default_mouse_mode = GLFW_CURSOR_HIDDEN;
     }
 
@@ -1518,7 +1518,7 @@ int main(int argc, char **argv) {
         }
 
         if (!mouse_pointer_hidden) {
-            if (version_id >= version_id_0_6_0 && version_id <= version_id_0_9_5) {
+            if (version_id > version_id_0_7_6 && version_id <= version_id_0_9_5) {
                 float inv_gui_scale = *((float *)internal_dlsym(handle, "_ZN3Gui11InvGuiScaleE"));
                 double xpos, ypos;
                 glfwGetCursorPos(_window, &xpos, &ypos);
