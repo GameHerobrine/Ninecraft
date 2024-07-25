@@ -415,35 +415,55 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
 
         int game_keycode = getGameKeyCode(key);
         
-        if(mouse_pointer_hidden && version_id == version_id_0_8_1){
-        	int player = *(int*)(((int)ninecraft_app) + 3168);
-        	if(key >= GLFW_KEY_1 && key <= GLFW_KEY_8 && opt_INV_NUMBERS.value.asbool){
-				int slot = 8 - (GLFW_KEY_8 - key + 1);
-				int inv = *(int*)(player + 3244);
-				void* fn = internal_dlsym(handle, "_ZN9Inventory10selectSlotEi");
-				((void (*) (int, int)) fn)(inv, slot);
-				return;
-        	}
-        	
-        	if(key == GLFW_KEY_Q && opt_DROP_SLOT.value.asbool){ //drop using q
-				int inv = *(int*)(player + 3244);
-				int slot = *(int*)(inv+40);
-	
-				if(slot <= 8){
-					void* fn = internal_dlsym(handle, "_ZN16FillingContainer8dropSlotEibb");
-					((void (*) (int, int, char, char)) fn)(inv, slot, 0, 0);
-				}
-				return;
-        	}
-        	
-        	if(mouse_pointer_hidden && (key == GLFW_KEY_SPACE || key == GLFW_KEY_LEFT_SHIFT) && opt_BETTER_CREATIVE_CONTROLS.value.asbool){ //better creative controls
-        		char isFlying = *(char*)(player + 3209); //player->abilities.flying
-        		if(isFlying){
-        			if(key == GLFW_KEY_LEFT_SHIFT){ //avoid sneaking
-        				return;
-        			}
-        		}
-        	}
+        if(mouse_pointer_hidden){
+		int off_mc_thePlayer = 0;
+		int off_player_inventory = 0;
+		int off_inventory_currentSlot = 0;
+		int off_player_abilities = 0;
+
+		if(version_id == version_id_0_8_1){
+			off_mc_thePlayer = 3168;
+			off_player_inventory = 3244;
+			off_inventory_currentSlot = 40;
+			off_player_abilities = 3208;
+		}else if(version_id == version_id_0_7_6){
+			off_mc_thePlayer = 3128;
+			off_player_inventory = 3120;
+			off_inventory_currentSlot = 36;
+			off_player_abilities = 3084;
+		}else{
+			goto BC_NOT_IMPL;
+		}
+
+		
+		int player = *(int*)(((int)ninecraft_app) + off_mc_thePlayer);
+		int inv = *(int*)(player + off_player_inventory);
+
+		if(key >= GLFW_KEY_1 && key <= GLFW_KEY_8 && opt_INV_NUMBERS.value.asbool){
+			int slot = 8 - (GLFW_KEY_8 - key + 1);
+			void* fn = internal_dlsym(handle, "_ZN9Inventory10selectSlotEi");
+			((void (*) (int, int)) fn)(inv, slot);
+			return;
+	        }
+	        
+		if(key == GLFW_KEY_Q && opt_DROP_SLOT.value.asbool){ //drop using q
+			int slot = *(int*)(inv+off_inventory_currentSlot);
+			if(slot <= 8){
+				void* fn = internal_dlsym(handle, "_ZN16FillingContainer8dropSlotEibb");
+				((void (*) (int, int, char, char)) fn)(inv, slot, 0, 0);
+			}
+			return;
+	        }
+	        
+		if((key == GLFW_KEY_SPACE || key == GLFW_KEY_LEFT_SHIFT) && opt_BETTER_CREATIVE_CONTROLS.value.asbool){ //better creative controls
+			char isFlying = *(char*)(player + off_player_abilities + 1); //player->abilities.flying
+	        	if(isFlying){
+	        		if(key == GLFW_KEY_LEFT_SHIFT){ //avoid sneaking
+	        			return;
+	        		}
+	        	}
+		}
+	BC_NOT_IMPL:
         }
         
         if(mouse_pointer_hidden && key == GLFW_KEY_F5){
