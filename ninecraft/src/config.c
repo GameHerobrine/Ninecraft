@@ -28,6 +28,10 @@ ninecraft_cfg_option_t opt_TOGGLE_SHIFT = {
 	0
 };
 
+ninecraft_cfg_option_t opt_NO_KEYBOARD_SPACE_IN_CHAT = {
+	"no-keyboard-space-in-chat",
+	1
+};
 
 void writeBoolOptionTo(FILE* fp, ninecraft_cfg_option_t* option){
 	int strsize = strlen(option->name);
@@ -49,7 +53,7 @@ void writeConfigFile(){
 	writeBoolOptionTo(file, &opt_BETTER_CREATIVE_CONTROLS);
 	writeBoolOptionTo(file, &opt_SCALING_FIX);
 	writeBoolOptionTo(file, &opt_TOGGLE_SHIFT);
-	
+	writeBoolOptionTo(file, &opt_NO_KEYBOARD_SPACE_IN_CHAT);
 	fclose(file);
 }
 
@@ -70,6 +74,8 @@ void handleOption(char* name, char* value){
 		setBool(&opt_SCALING_FIX, value);
 	}else if(strcmp(name, opt_TOGGLE_SHIFT.name) == 0){
 		setBool(&opt_TOGGLE_SHIFT, value);
+	}else if(strcmp(name, opt_NO_KEYBOARD_SPACE_IN_CHAT.name) == 0){
+		setBool(&opt_NO_KEYBOARD_SPACE_IN_CHAT, value);
 	}
 	
 }

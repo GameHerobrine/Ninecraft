@@ -18,5 +18,6 @@ extern ninecraft_cfg_option_t opt_BETTER_CREATIVE_CONTROLS;
 extern ninecraft_cfg_option_t opt_TOGGLE_SHIFT;
 
 extern ninecraft_cfg_option_t opt_SCALING_FIX;
+extern ninecraft_cfg_option_t opt_NO_KEYBOARD_SPACE_IN_CHAT;
 
 #endif

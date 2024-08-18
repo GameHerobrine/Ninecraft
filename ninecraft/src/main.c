@@ -517,6 +517,7 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
                     return;
                 }
                 ((void (*)(void *, int))internal_dlsym(handle, "_ZN13ScreenChooser9setScreenE8ScreenId"))(ninecraft_app + minecraft_screenchooser_offset, 7);
+		
                 if(version_id == version_id_0_8_1){
                 	chatJustOpened = 1;
                 	int** guiScreen = *(int***)((int)ninecraft_app + 3184);
@@ -1133,8 +1134,51 @@ int main(int argc, char **argv) {
 		method[42] = 0x90; //jz      short loc_1193B8 -> nop nop -> use touch:: inv
 		method[43] = 0x90;
 #endif
+
 	}
-    
+    	
+	if(opt_NO_KEYBOARD_SPACE_IN_CHAT.value.asbool){
+#ifdef __arm
+		printf("cant patch arm .so to include no keyboard space in chat patch!\n");
+#else
+		if(version_id == version_id_0_7_6){
+			unsigned char* method = internal_dlsym(handle, "_ZN10ChatScreen6renderEiif");
+			method[35] = 0xe9;
+			method[36] = 0x70;
+			method[37] = 0x01;
+			method[38] = 0x00;
+			method[39] = 0x00;
+
+			method = internal_dlsym(handle, "_ZN10ChatScreen26updateToggleKeyboardButtonEv");
+			method[248] = 0x90;
+			method[249] = 0x90;
+			
+			method = internal_dlsym(handle, "_ZN10ChatScreen24updateKeyboardVisibilityEv");
+			method[119] = 0x00;
+			method[128] = 0x00;
+
+		}else if(version_id == version_id_0_8_1){
+			unsigned char* method = internal_dlsym(handle, "_ZN10ChatScreen6renderEiif");
+			method[43] = 0xe9;
+			method[44] = 0x68;
+			method[45] = 0x01;
+			method[46] = 0x00;
+			method[47] = 0x00;
+
+			method = internal_dlsym(handle, "_ZN10ChatScreen26updateToggleKeyboardButtonEv");
+			method[248] = 0x90;
+			method[249] = 0x90;
+			
+			method = internal_dlsym(handle, "_ZN10ChatScreen24updateKeyboardVisibilityEv");
+			method[150] = 0x00;
+			method[158] = 0x00;
+		}else{
+			printf("no keyboard space in chat patch is not implemented for %d\n", version_id);
+		}
+#endif
+	}
+	
+	
     multitouch_setup_hooks(handle);
     keyboard_setup_hooks(handle);
     minecraft_setup_hooks(handle);
