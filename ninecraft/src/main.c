@@ -522,7 +522,12 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
                 	int** guiScreen = *(int***)((int)ninecraft_app + 3184);
                 	void* buttonClicked = (void*) guiScreen[0][30];
                 	((void (*)(int**, int*)) buttonClicked)(guiScreen, guiScreen[24]);
-                }
+                }else if(version_id == version_id_0_7_6){
+			chatJustOpened = 1;
+			int** guiScreen = *(int***)((int)ninecraft_app + 3144);
+			void* buttonClicked = (void*) guiScreen[0][29];
+			((void (*)(int**, int*)) buttonClicked)(guiScreen, guiScreen[24]);
+		}
             }
         } else if (version_id >= version_id_0_1_1 && key == GLFW_KEY_ESCAPE) {
             if (action == GLFW_PRESS) {
