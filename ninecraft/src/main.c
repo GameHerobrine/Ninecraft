@@ -471,10 +471,12 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
         	if(b != keyF5){
         		keyF5 = b;
         		if(b){
-        			void* options = (int)ninecraft_app + 60;
-					void* third_person = internal_dlsym(handle, "_ZN7Options6Option12THIRD_PERSONE");
-					void (*fn)(void*, void*, int) = internal_dlsym(handle, "_ZN7Options6toggleEPKNS_6OptionEi");
-					fn(options, third_person, keyF5); //last arg doesnt matter here
+				int offset = 60;
+				if(version_id == version_id_0_9_5) offset = 56;
+				void* options = (int)ninecraft_app + offset;
+				void* third_person = internal_dlsym(handle, "_ZN7Options6Option12THIRD_PERSONE");
+				void (*fn)(void*, void*, int) = internal_dlsym(handle, "_ZN7Options6toggleEPKNS_6OptionEi");
+				fn(options, third_person, keyF5); //last arg doesnt matter here
         		}
         	}
         }
