@@ -1135,7 +1135,17 @@ int main(int argc, char **argv) {
             return 1;
         }
     }
-    
+    	
+	if(version_id == version_id_0_9_5){ //0.9.5: fix space not working in chat(and remove its function from other screens
+#ifdef __arm__
+		printf("0.9.5 arm: cant disable key_jump in screen\n");
+#else
+		unsigned char* method = internal_dlsym(handle, "_ZN6Screen10keyPressedEi");
+		method[155] = 0x90;
+		method[156] = 0x90;
+#endif
+	}
+	
 	if(version_id == version_id_0_7_6){
 		//0.7.6 x86: inv fix (it will not work in arm)
 #ifdef __arm__
