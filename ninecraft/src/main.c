@@ -398,6 +398,7 @@ static void char_callback(GLFWwindow *window, unsigned int codepoint) {
 }
 
 bool flyDown, flyUp;
+bool sneaking_095 = 0;
 char keyF5 = 0;
 static void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
     if (key == GLFW_KEY_F11) {
@@ -482,17 +483,27 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
         }
         
         if (mouse_pointer_hidden && key == GLFW_KEY_LEFT_SHIFT) {
-        	
-        	if(!opt_TOGGLE_SHIFT.value.asbool && version_id == version_id_0_8_1){
-        		int player = *(int*)(((int)ninecraft_app) + 3168);
-        		int moveinp = *(int*)(player + 3408);
-        		*(char*)(moveinp + 14) = (action != GLFW_RELEASE);
+        	if(!opt_TOGGLE_SHIFT.value.asbool){
+			if(version_id == version_id_0_8_1){
+	        		int player = *(int*)(((int)ninecraft_app) + 3168);
+        			int moveinp = *(int*)(player + 3408);
+        			*(char*)(moveinp + 14) = (action != GLFW_RELEASE);
+			}else if(version_id == version_id_0_9_5){
+				sneaking_095 = (action != GLFW_RELEASE); //0.9 overrides vanilla sneaking
+			}else{
+				goto lshift_fallback;
+			}
         	}else{
-        		if (action == GLFW_PRESS) {
-        			controller_states[0] = 1;
+			lshift_fallback:
+			if(version_id == version_id_0_9_5){
+				if(action == GLFW_PRESS) sneaking_095 = !sneaking_095;
+			}else{
+				if (action == GLFW_PRESS) {
+	        			controller_states[0] = 1;
 				} else if (action == GLFW_RELEASE) {
 					controller_states[0] = 0;
 				}
+			}
         	}
         } else if (mouse_pointer_hidden && key == GLFW_KEY_T) {
             if (action == GLFW_PRESS) {
@@ -873,6 +884,11 @@ ninecraft_options_t options = {
     .length = 0,
     .capasity = 0
 };
+
+
+bool LocalPlayer_isSneaking_hook_095(int this){
+	return sneaking_095;
+}
 
 void (*XperialPlayInput_tick_real_081)(int, int);
 void XperialPlayInput_tick_hook_081(int this, int player){
@@ -1567,7 +1583,13 @@ int main(int argc, char **argv) {
     } else if (version_id == version_id_0_1_0) {
         minecraft_isgrabbed_offset = MINECRAFT_ISGRABBED_OFFSET_0_1_0;
     }
-    
+
+	if(version_id == version_id_0_9_5){
+		int* playervt = (int*)((int)internal_dlsym(handle, "_ZTV11LocalPlayer") + 8);
+		printf("'issneaking %p\n", playervt[44]);
+		playervt[44] = &LocalPlayer_isSneaking_hook_095;
+	}
+	
     if (version_id == version_id_0_8_1) {
 		int* vtinput = (int*)((int)internal_dlsym(handle, "_ZTV15XperiaPlayInput") + 8);
 		XperialPlayInput_tick_real_081 = vtinput[2];
