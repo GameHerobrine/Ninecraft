@@ -432,6 +432,10 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
 			off_player_inventory = 3120;
 			off_inventory_currentSlot = 36;
 			off_player_abilities = 3084;
+		}else if(version_id == version_id_0_9_5){
+			off_mc_thePlayer = 797*4;
+			off_player_inventory = 3208;
+			off_inventory_currentSlot = 40;
 		}else{
 			goto BC_NOT_IMPL;
 		}
@@ -457,6 +461,9 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
 	        }
 	        
 		if((key == GLFW_KEY_SPACE || key == GLFW_KEY_LEFT_SHIFT) && opt_BETTER_CREATIVE_CONTROLS.value.asbool){ //better creative controls
+			if(version_id == version_id_0_9_5){
+				goto BC_NOT_IMPL;
+			}
 			char isFlying = *(char*)(player + off_player_abilities + 1); //player->abilities.flying
 	        	if(isFlying){
 	        		if(key == GLFW_KEY_LEFT_SHIFT){ //avoid sneaking
