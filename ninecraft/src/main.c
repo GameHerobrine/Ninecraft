@@ -51,6 +51,7 @@
 #include <stb_image.h>
 
 #include <ninecraft/config.h>
+#include "cpputils.h"
 
 void *handle = NULL;
 GLFWwindow *_window = NULL;
@@ -391,7 +392,7 @@ static void char_callback(GLFWwindow *window, unsigned int codepoint) {
             }
 
             android_string_t str;
-            android_string_cstr(&str, p_codepoint);
+            android_string_cstr((android_string_gnu_t *)&str, p_codepoint);
             keyboard_feed_text_0_7_2(&str, false);
         }
     }
@@ -916,6 +917,33 @@ void XperialPlayInput_tick_hook_081(int this, int player){
 	}
 }
 
+void (*TextBox_keyPressed_real_081)(void* this, void* mc, int i);
+char Minecraft_useTouchscreen_095(void** mc){
+	void* screen = mc[800];
+	if(screen) return 1;
+	return 0;
+}
+char useTouchScreen_0105 = 0;
+void (*MinecraftClient__reloadInput_0105_real)(void** mc);
+char MinecraftClient_useTouchscreen_0105(void** mc){
+	void* screen = mc[27];
+	char ret = 0;
+	if(screen) {
+		ret = 1;
+	}
+	if(useTouchScreen_0105 != ret){
+		useTouchScreen_0105 = ret;
+		MinecraftClient__reloadInput_0105_real(mc);
+	}
+
+	return ret;
+}
+int Gui_getNumSlots_095(void* gui){
+	return 9;
+}
+
+int (*Gui_getNumSlots_0105)(void* gui) = Gui_getNumSlots_095;
+
 int main(int argc, char **argv) {
     struct stat st = {0};
     if (stat("storage", &st) == -1) {
@@ -994,7 +1022,7 @@ int main(int argc, char **argv) {
     android_string_setup_hooks(handle);
 
     android_string_t in;
-    android_string_cstr(&in, "v%d.%d.%d alpha");
+    android_string_cstr((android_string_gnu_t *)&in, "v%d.%d.%d alpha");
 
     void (*get_game_version_string)(android_string_t *, android_string_t *) = (void (*)(android_string_t *, android_string_t *))internal_dlsym(handle, "_ZN6Common20getGameVersionStringERKSs");
 
@@ -1221,8 +1249,30 @@ int main(int argc, char **argv) {
 		}
 #endif
 	}
-	
-	
+
+	if(version_id == version_id_0_9_5){
+#ifdef __arm__
+		printf("cant inject!\n");
+#else
+		unsigned char* method = internal_dlsym(handle, "_ZN9Minecraft14useTouchscreenEv");
+		DETOUR(method, Minecraft_useTouchscreen_095, true);
+		method = internal_dlsym(handle, "_ZN3Gui11getNumSlotsEv");
+		DETOUR(method, Gui_getNumSlots_095, true);
+		//printf("usecontroller: %x %x %x %x %x %x\n", *method, method[1], method[2], method[3], method[4], method[5]);
+#endif
+	}
+	if(version_id == version_id_0_10_5){
+#ifdef __arm__
+		printf("cant inject!\n");
+#else
+		MinecraftClient__reloadInput_0105_real = internal_dlsym(handle, "_ZN15MinecraftClient12_reloadInputEv");
+		unsigned char* method = internal_dlsym(handle, "_ZN15MinecraftClient14useTouchscreenEv");
+		DETOUR(method, MinecraftClient_useTouchscreen_0105, true);
+		method = internal_dlsym(handle, "_ZN3Gui11getNumSlotsEv");
+		DETOUR(method, Gui_getNumSlots_0105, true);
+#endif
+	}
+
     multitouch_setup_hooks(handle);
     keyboard_setup_hooks(handle);
     minecraft_setup_hooks(handle);

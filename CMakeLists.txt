@@ -9,7 +9,7 @@ else()
 endif()
 
 set(GLFW_BUILD_X11 TRUE)
-
+add_compile_options(-Wno-incompatible-pointer-types -Wno-implicit-function-declaration -Wno-int-conversion)
 include_directories(${GLFW_SOURCE_DIR}/include)
 include_directories(${PROJECT_SOURCE_DIR}/minivorbis)
 include_directories(${PROJECT_SOURCE_DIR}/stb)
