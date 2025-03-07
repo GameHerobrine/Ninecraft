@@ -898,6 +898,7 @@ bool LocalPlayer_isSneaking_hook_095(int this){
 void (*ControllerMoveInput_tick_real_095)(int, int);
 void ControllerMoveInput_tick_hook_095(int this, int player){
 	bool flight = 0;
+	bool tf = *(char*)(player + 3169);
 	//printf("%x %x %x\n", *(char*)(player + 3169), *(char*)(player + 3168), *(char*)(player + 3170));
 	if(*(char*)(player + 3169) && *(char*)(this + 0xf + 7)){ //isFlying && space
 		if(*(char*)(this + 0xf + 3) || *(char*)(this + 0xf + 4)){ //w || s
@@ -916,8 +917,10 @@ void ControllerMoveInput_tick_hook_095(int this, int player){
 	*(char*)(this + 33) = 0; //needed to make backward work
 	ControllerMoveInput_tick_real_095(this, player);
 	
-	*(char*)(this + 4 + 0xB) = glfwGetKey(_window, GLFW_KEY_SPACE) != GLFW_RELEASE;
-	*(char*)(this + 4 + 0xC) = glfwGetKey(_window, GLFW_KEY_LEFT_SHIFT) != GLFW_RELEASE;
+	if(tf){
+		*(char*)(this + 4 + 0xB) = glfwGetKey(_window, GLFW_KEY_SPACE) != GLFW_RELEASE;
+		*(char*)(this + 4 + 0xC) = glfwGetKey(_window, GLFW_KEY_LEFT_SHIFT) != GLFW_RELEASE;
+	}
 	if(flight){
 		*(char*)(player + 3169) = 1;
 	}
