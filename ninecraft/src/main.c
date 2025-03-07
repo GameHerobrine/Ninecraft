@@ -462,9 +462,6 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
 	        }
 	        
 		if((key == GLFW_KEY_SPACE || key == GLFW_KEY_LEFT_SHIFT) && opt_BETTER_CREATIVE_CONTROLS.value.asbool){ //better creative controls
-			if(version_id == version_id_0_9_5){
-				goto BC_NOT_IMPL;
-			}
 			char isFlying = *(char*)(player + off_player_abilities + 1); //player->abilities.flying
 	        	if(isFlying){
 	        		if(key == GLFW_KEY_LEFT_SHIFT){ //avoid sneaking
@@ -898,9 +895,38 @@ bool LocalPlayer_isSneaking_hook_095(int this){
 	return sneaking_095;
 }
 
+void (*ControllerMoveInput_tick_real_095)(int, int);
+void ControllerMoveInput_tick_hook_095(int this, int player){
+	bool flight = 0;
+	//printf("%x %x %x\n", *(char*)(player + 3169), *(char*)(player + 3168), *(char*)(player + 3170));
+	if(*(char*)(player + 3169) && *(char*)(this + 0xf + 7)){ //isFlying && space
+		if(*(char*)(this + 0xf + 3) || *(char*)(this + 0xf + 4)){ //w || s
+			// *(char*)(player + 3169) = 0; //player doesnt fly -> no vanilla checks
+			// *(char*)(this+0xf+7) = 0;
+			flight = 1;
+		}
+	}
+
+	if(*(char*)(this + 0xf + 3)){ //w
+		*(float*)(this+0x8) = 1;
+	}else if(*(char*)(this + 0xf + 4)){ //s
+		*(float*)(this+0x8) = -1;
+	}
+	*(char*)(this + 32) = 0; //needed to make forward work
+	*(char*)(this + 33) = 0; //needed to make backward work
+	ControllerMoveInput_tick_real_095(this, player);
+	
+	*(char*)(this + 4 + 0xB) = glfwGetKey(_window, GLFW_KEY_SPACE) != GLFW_RELEASE;
+	*(char*)(this + 4 + 0xC) = glfwGetKey(_window, GLFW_KEY_LEFT_SHIFT) != GLFW_RELEASE;
+	if(flight){
+		*(char*)(player + 3169) = 1;
+	}
+}
+
 void (*XperialPlayInput_tick_real_081)(int, int);
 void XperialPlayInput_tick_hook_081(int this, int player){
 	bool flight = false;
+
 	if(*(char*)(player + 3209) && *(char*)(this + 0xf + 7)){ //isFlying && space
 		if(*(char*)(this + 0xf + 3) || *(char*)(this + 0xf + 4)){ //w || s
 			*(char*)(player + 3209) = 0; //player doesnt fly -> no vanilla checks
@@ -1272,6 +1298,8 @@ int main(int argc, char **argv) {
 		DETOUR(method, Gui_getNumSlots_0105, true);
 #endif
 	}
+
+
 
     multitouch_setup_hooks(handle);
     keyboard_setup_hooks(handle);
@@ -1647,12 +1675,17 @@ int main(int argc, char **argv) {
 		playervt[44] = &LocalPlayer_isSneaking_hook_095;
 	}
 	
-    if (version_id == version_id_0_8_1) {
+	if (version_id == version_id_0_8_1) {
 		int* vtinput = (int*)((int)internal_dlsym(handle, "_ZTV15XperiaPlayInput") + 8);
 		XperialPlayInput_tick_real_081 = vtinput[2];
 		vtinput[2] = &XperialPlayInput_tick_hook_081;
-    }
-    
+	}
+	if (version_id == version_id_0_9_5) {
+		int* vtinput = (int*)((int)internal_dlsym(handle, "_ZTV19ControllerMoveInput") + 8);
+		ControllerMoveInput_tick_real_095 = vtinput[2];
+		vtinput[2] = &ControllerMoveInput_tick_hook_095;
+	}
+
     while (true) {
         if (((bool *)ninecraft_app)[minecraft_isgrabbed_offset]) {
             if (!mouse_pointer_hidden) {
