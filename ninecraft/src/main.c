@@ -209,6 +209,8 @@ static void mouse_scroll_callback(GLFWwindow *window, double xoffset, double yof
     keyboard_feed(key_code, 0);
 }
 
+
+
 static double last_mouse_x = 0;
 static double last_mouse_y = 0;
 static bool ignore_relative_motion = false;
@@ -479,9 +481,13 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
         		if(b){
 				int offset = 60;
 				if(version_id == version_id_0_9_5) offset = 56;
+
 				void* options = (int)ninecraft_app + offset;
+				if(version_id == version_id_0_10_5) options = *(void**)((int)ninecraft_app + 252);
+
 				void* third_person = internal_dlsym(handle, "_ZN7Options6Option12THIRD_PERSONE");
 				void (*fn)(void*, void*, int) = internal_dlsym(handle, "_ZN7Options6toggleEPKNS_6OptionEi");
+				printf("%p %p %p\n", options, third_person, fn);
 				fn(options, third_person, keyF5); //last arg doesnt matter here
         		}
         	}
@@ -514,6 +520,8 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
             if (action == GLFW_PRESS) {
                 size_t minecraft_screenchooser_offset;
 		int screenid = 7;
+		char useScreenChooser = 1;
+
                 if (version_id == version_id_0_7_0) {
                     minecraft_screenchooser_offset = MINECRAFT_SCREENCHOOSER_OFFSET_0_7_0;
                 } else if (version_id == version_id_0_7_1) {
@@ -535,11 +543,19 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
                 } else if(version_id == version_id_0_9_5){
 			minecraft_screenchooser_offset = 408;
 			screenid = 5; //6 = start chat message with /
-		} else{
+		} else if(version_id == version_id_0_10_5){
+			useScreenChooser = 0;
+			void* chat = malloc(0xf0);
+			void (*constructor)(void*, int) = internal_dlsym(handle, "_ZN10ChatScreenC2Eb");
+			constructor(chat, 0);
+			((void (*) (void*, void*)) internal_dlsym(handle, "_ZN15MinecraftClient9setScreenEP6Screen"))(ninecraft_app, chat);
+		}else {
 			return;
 		}
-		((void (*)(void *, int))internal_dlsym(handle, "_ZN13ScreenChooser9setScreenE8ScreenId"))(ninecraft_app + minecraft_screenchooser_offset, screenid);
 
+
+		if(useScreenChooser) ((void (*)(void *, int))internal_dlsym(handle, "_ZN13ScreenChooser9setScreenE8ScreenId"))(ninecraft_app + minecraft_screenchooser_offset, screenid);
+		
                 if(version_id == version_id_0_8_1){
                 	chatJustOpened = 1;
                 	int** guiScreen = *(int***)((int)ninecraft_app + 3184);
@@ -555,6 +571,11 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
 			int** guiScreen = *(int***)((int)ninecraft_app + 3200);
 			void* buttonClicked = (void*) guiScreen[0][32];
 			((void (*)(int**, int*)) buttonClicked)(guiScreen, guiScreen[36]);
+		}else if(version_id == version_id_0_10_5){
+			chatJustOpened = 1;
+			int** guiScreen = *(int***)((int)ninecraft_app + 108);
+			void* buttonClicked = (void*) guiScreen[0][32];
+			((void (*)(int**, int*)) buttonClicked)(guiScreen, guiScreen[53]);
 		}
             }
         } else if (version_id >= version_id_0_1_1 && key == GLFW_KEY_ESCAPE) {
@@ -954,6 +975,11 @@ char Minecraft_useTouchscreen_095(void** mc){
 }
 char useTouchScreen_0105 = 0;
 void (*MinecraftClient__reloadInput_0105_real)(void** mc);
+
+/*char MinecraftClient_useController_0105(void** mc){
+	return 1;
+}*/
+
 char MinecraftClient_useTouchscreen_0105(void** mc){
 	void* screen = mc[27];
 	char ret = 0;
@@ -1299,6 +1325,8 @@ int main(int argc, char **argv) {
 		DETOUR(method, MinecraftClient_useTouchscreen_0105, true);
 		method = internal_dlsym(handle, "_ZN3Gui11getNumSlotsEv");
 		DETOUR(method, Gui_getNumSlots_0105, true);
+		//method = internal_dlsym(handle, "_ZN15MinecraftClient13useControllerEv");
+		//DETOUR(method, MinecraftClient_useController_0105, true);
 #endif
 	}
 
