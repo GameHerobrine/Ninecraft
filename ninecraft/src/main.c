@@ -231,9 +231,10 @@ static void mouse_pos_callback(GLFWwindow *window, double xpos, double ypos) {
     } else {
         int cx;
         int cy;
+	float scale = *(float*) internal_dlsym(handle, "_ZN3Gui11InvGuiScaleE");
         glfwGetWindowSize(window, &cx, &cy);
-        cx /= 2;
-        cy /= 2;
+        cx *= scale;
+        cy *= scale;
         if ((int)xpos != cy || (int)ypos != cy) {
             glfwSetCursorPos(window, cx, cy);
             y_cam -= ((float)ypos - (float)cy) / 1.7;
@@ -481,13 +482,13 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
         		if(b){
 				int offset = 60;
 				if(version_id == version_id_0_9_5) offset = 56;
+				if(version_id == version_id_0_5_0) return; //offset = 40;
 
 				void* options = (int)ninecraft_app + offset;
 				if(version_id == version_id_0_10_5) options = *(void**)((int)ninecraft_app + 252);
 
 				void* third_person = internal_dlsym(handle, "_ZN7Options6Option12THIRD_PERSONE");
 				void (*fn)(void*, void*, int) = internal_dlsym(handle, "_ZN7Options6toggleEPKNS_6OptionEi");
-				printf("%p %p %p\n", options, third_person, fn);
 				fn(options, third_person, keyF5); //last arg doesnt matter here
         		}
         	}
