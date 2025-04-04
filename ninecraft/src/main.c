@@ -131,11 +131,12 @@ void egl_stub() {
 }
 
 int mouseToGameKeyCode(int keyCode) {
-    if (keyCode == GLFW_MOUSE_BUTTON_LEFT) {
-        return MCKEY_BREAK;
-    } else if (keyCode == GLFW_MOUSE_BUTTON_RIGHT) {
-        return MCKEY_PLACE;
-    }
+	if (keyCode == GLFW_MOUSE_BUTTON_LEFT) {
+		return MCKEY_BREAK;
+	} else if (keyCode == GLFW_MOUSE_BUTTON_RIGHT) {
+		return MCKEY_PLACE;
+	}
+	return 0;
 }
 bool additionalBuildChecks = 0;
 unsigned int lastBuiltTick = 0;
