@@ -53,6 +53,9 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
+#include <ninecraft/config.h>
+#include "cpputils.h"
+
 void *handle = NULL;
 GLFWwindow *_window = NULL;
 
@@ -73,6 +76,7 @@ static float *controller_y_stick;
 bool mouse_pointer_hidden = false;
 
 int old_pos_x, old_pos_y, old_width, old_height;
+
 
 void *load_library(const char *name) {
 #if defined(__i386__) || defined(_M_IX86)
@@ -132,13 +136,15 @@ void egl_stub() {
 }
 
 int mouseToGameKeyCode(int keyCode) {
-    if (keyCode == GLFW_MOUSE_BUTTON_LEFT) {
-        return MCKEY_BREAK;
-    } else if (keyCode == GLFW_MOUSE_BUTTON_RIGHT) {
-        return MCKEY_PLACE;
-    }
-    return 0;
+	if (keyCode == GLFW_MOUSE_BUTTON_LEFT) {
+		return MCKEY_BREAK;
+	} else if (keyCode == GLFW_MOUSE_BUTTON_RIGHT) {
+		return MCKEY_PLACE;
+	}
+	return 0;
 }
+bool additionalBuildChecks = 0;
+unsigned int lastBuiltTick = 0;
 
 static void mouse_click_callback(GLFWwindow *window, int button, int action, int mods) {
     double xpos, ypos;
@@ -157,9 +163,19 @@ static void mouse_click_callback(GLFWwindow *window, int button, int action, int
     } else {
         int game_keycode = mouseToGameKeyCode(button);
 
-        if (action == GLFW_PRESS) {
+
+        if(version_id == version_id_0_8_1 && game_keycode == MCKEY_PLACE){ //fix usage of bows, egg and snowball items
+        	if(action == GLFW_PRESS) {
+        		additionalBuildChecks = 1;
+        		int placeActionTimeout = *(int*)((int)ninecraft_app + 3332);
+        		if(!placeActionTimeout) lastBuiltTick = *(unsigned int*)(ninecraft_app + 3336);
+        	}
+        	else if(action == GLFW_RELEASE) additionalBuildChecks = 0;
+        }
+        
+        if (action == GLFW_PRESS && !keyboard_states[game_keycode]) {
             keyboard_feed(game_keycode, 1);
-        } else if (action == GLFW_RELEASE) {
+        } else if (action == GLFW_RELEASE && keyboard_states[game_keycode]) {
             keyboard_feed(game_keycode, 0);
         }
     }
@@ -171,12 +187,35 @@ static void mouse_scroll_callback(GLFWwindow *window, double xoffset, double yof
     char key_code = 0;
     if (yoffset > 0) {
         key_code = MCKEY_HOTBAR_PREVIOUS;
+        if(mouse_pointer_hidden && version_id == version_id_0_8_1){
+			int player = *(int*)(((int)ninecraft_app) + 3168);
+			int inv = *(int*)(player + 3244);
+			int slotSelected = *(int*)(inv + 40);
+			if(slotSelected <= 0){
+				void* fn = internal_dlsym(handle, "_ZN9Inventory10selectSlotEi");
+				((void (*) (int, int)) fn)(inv, 7);
+				return;
+			}
+        }
     } else if (yoffset < 0) {
         key_code = MCKEY_HOTBAR_NEXT;
+        if(mouse_pointer_hidden && version_id == version_id_0_8_1){
+			int player = *(int*)(((int)ninecraft_app) + 3168);
+			int inv = *(int*)(player + 3244);
+			int slotSelected = *(int*)(inv + 40);
+			if(slotSelected >= 7){
+				void* fn = internal_dlsym(handle, "_ZN9Inventory10selectSlotEi");
+				((void (*) (int, int)) fn)(inv, 0);
+				return;
+			}
+        }
     }
+    
     keyboard_feed(key_code, 1);
     keyboard_feed(key_code, 0);
 }
+
+
 
 static double last_mouse_x = 0;
 static double last_mouse_y = 0;
@@ -198,9 +237,10 @@ static void mouse_pos_callback(GLFWwindow *window, double xpos, double ypos) {
     } else {
         int cx;
         int cy;
+	float scale = *(float*) internal_dlsym(handle, "_ZN3Gui11InvGuiScaleE");
         glfwGetWindowSize(window, &cx, &cy);
-        cx /= 2;
-        cy /= 2;
+        cx *= scale;
+        cy *= scale;
         if ((int)xpos != cy || (int)ypos != cy) {
             glfwSetCursorPos(window, cx, cy);
             y_cam -= ((float)ypos - (float)cy) / 1.7;
@@ -286,34 +326,37 @@ static void set_ninecraft_size(int width, int height) {
         glClear(GL_DEPTH_BUFFER_BIT);
         minecraft_set_size(ninecraft_app, width, height);
         // Scaling fix
-        size_t screen_offset;
-        if (version_id == version_id_0_8_1) {
-            screen_offset = NINECRAFTAPP_SCREEN_OFFSET_0_8_1;
-        } else if (version_id == version_id_0_8_0) {
-            screen_offset = NINECRAFTAPP_SCREEN_OFFSET_0_8_0;
-        } else if (version_id == version_id_0_7_6) {
-            screen_offset = NINECRAFTAPP_SCREEN_OFFSET_0_7_6;
-        } else if (version_id == version_id_0_7_5) {
-            screen_offset = NINECRAFTAPP_SCREEN_OFFSET_0_7_5;
-        } else if (version_id == version_id_0_7_4) {
-            screen_offset = NINECRAFTAPP_SCREEN_OFFSET_0_7_4;
-        } else if (version_id == version_id_0_7_3) {
-            screen_offset = NINECRAFTAPP_SCREEN_OFFSET_0_7_3;
-        } else if (version_id == version_id_0_7_2) {
-            screen_offset = NINECRAFTAPP_SCREEN_OFFSET_0_7_2;
-        } else if (version_id == version_id_0_7_1) {
-            screen_offset = NINECRAFTAPP_SCREEN_OFFSET_0_7_1;
-        } else if (version_id == version_id_0_7_0) {
-            screen_offset = NINECRAFTAPP_SCREEN_OFFSET_0_7_0;
-        } else {
-            return;
+        if(opt_SCALING_FIX.value.asbool){
+        	size_t screen_offset;
+			if (version_id == version_id_0_8_1) {
+				screen_offset = NINECRAFTAPP_SCREEN_OFFSET_0_8_1;
+			} else if (version_id == version_id_0_8_0) {
+				screen_offset = NINECRAFTAPP_SCREEN_OFFSET_0_8_0;
+			} else if (version_id == version_id_0_7_6) {
+				screen_offset = NINECRAFTAPP_SCREEN_OFFSET_0_7_6;
+			} else if (version_id == version_id_0_7_5) {
+				screen_offset = NINECRAFTAPP_SCREEN_OFFSET_0_7_5;
+			} else if (version_id == version_id_0_7_4) {
+				screen_offset = NINECRAFTAPP_SCREEN_OFFSET_0_7_4;
+			} else if (version_id == version_id_0_7_3) {
+				screen_offset = NINECRAFTAPP_SCREEN_OFFSET_0_7_3;
+			} else if (version_id == version_id_0_7_2) {
+				screen_offset = NINECRAFTAPP_SCREEN_OFFSET_0_7_2;
+			} else if (version_id == version_id_0_7_1) {
+				screen_offset = NINECRAFTAPP_SCREEN_OFFSET_0_7_1;
+			} else if (version_id == version_id_0_7_0) {
+				screen_offset = NINECRAFTAPP_SCREEN_OFFSET_0_7_0;
+			} else {
+				return;
+			}
+			*(float *)internal_dlsym(handle, "_ZN3Gui11InvGuiScaleE") = 0.5f;
+			*(float *)internal_dlsym(handle, "_ZN3Gui8GuiScaleE") = 2.0f;
+			void *screen = *(void **)(ninecraft_app + screen_offset);
+			if (screen) {
+				((void (*)(void *, int, int))internal_dlsym(handle, "_ZN6Screen7setSizeEii"))(screen, width * 0.5f, height * 0.5f);
+			}
         }
-        *(float *)internal_dlsym(handle, "_ZN3Gui11InvGuiScaleE") = 0.5f;
-        *(float *)internal_dlsym(handle, "_ZN3Gui8GuiScaleE") = 2.0f;
-        void *screen = *(void **)((char *)ninecraft_app + screen_offset);
-        if (screen) {
-            ((void (*)(void *, int, int))internal_dlsym(handle, "_ZN6Screen7setSizeEii"))(screen, width * 0.5f, height * 0.5f);
-        }
+       
     }
 }
 
@@ -324,9 +367,13 @@ static void resize_callback(GLFWwindow *window, int width, int height) {
         set_ninecraft_size(width, height);
     }
 }
-
+bool chatJustOpened = 0;
 static void char_callback(GLFWwindow *window, unsigned int codepoint) {
-    if (is_keyboard_visible) {    
+    if (is_keyboard_visible) {
+    	if(chatJustOpened){
+    		chatJustOpened = false;
+    		return;
+    	}
         if (version_id >= version_id_0_6_0 && version_id <= version_id_0_7_1) {
             keyboard_feed_text_0_6_0((char)codepoint);
         } else if (version_id >= version_id_0_7_2) {
@@ -354,12 +401,15 @@ static void char_callback(GLFWwindow *window, unsigned int codepoint) {
             }
 
             android_string_t str;
-            android_string_cstr(&str, p_codepoint);
+            android_string_cstr((android_string_t *)&str, p_codepoint);
             keyboard_feed_text_0_7_2(&str, false);
         }
     }
 }
 
+bool flyDown, flyUp;
+bool sneaking_095 = 0;
+char keyF5 = 0;
 static void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
     if (key == GLFW_KEY_F11) {
         if (action == GLFW_PRESS) {
@@ -373,16 +423,112 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
             }
         }
     } else {
+
         int game_keycode = getGameKeyCode(key);
+        
+        if(mouse_pointer_hidden){
+		int off_mc_thePlayer = 0;
+		int off_player_inventory = 0;
+		int off_inventory_currentSlot = 0;
+		int off_player_abilities = 0;
+
+		if(version_id == version_id_0_8_1){
+			off_mc_thePlayer = 3168;
+			off_player_inventory = 3244;
+			off_inventory_currentSlot = 40;
+			off_player_abilities = 3208;
+		}else if(version_id == version_id_0_7_6){
+			off_mc_thePlayer = 3128;
+			off_player_inventory = 3120;
+			off_inventory_currentSlot = 36;
+			off_player_abilities = 3084;
+		}else if(version_id == version_id_0_9_5){
+			off_mc_thePlayer = 797*4;
+			off_player_inventory = 3208;
+			off_inventory_currentSlot = 40;
+		}else{
+			goto BC_NOT_IMPL;
+		}
+
+		
+		int player = *(int*)(((int)ninecraft_app) + off_mc_thePlayer);
+		int inv = *(int*)(player + off_player_inventory);
+
+		if(key >= GLFW_KEY_1 && key <= GLFW_KEY_8 && opt_INV_NUMBERS.value.asbool){
+			int slot = 8 - (GLFW_KEY_8 - key + 1);
+			void* fn = internal_dlsym(handle, "_ZN9Inventory10selectSlotEi");
+			((void (*) (int, int)) fn)(inv, slot);
+			return;
+	        }
+	        
+		if(key == GLFW_KEY_Q && opt_DROP_SLOT.value.asbool){ //drop using q
+			int slot = *(int*)(inv+off_inventory_currentSlot);
+			if(slot <= 8){
+				void* fn = internal_dlsym(handle, "_ZN16FillingContainer8dropSlotEibb");
+				((void (*) (int, int, char, char)) fn)(inv, slot, 0, 0);
+			}
+			return;
+	        }
+	        
+		if((key == GLFW_KEY_SPACE || key == GLFW_KEY_LEFT_SHIFT) && opt_BETTER_CREATIVE_CONTROLS.value.asbool){ //better creative controls
+			char isFlying = *(char*)(player + off_player_abilities + 1); //player->abilities.flying
+	        	if(isFlying){
+	        		if(key == GLFW_KEY_LEFT_SHIFT){ //avoid sneaking
+	        			return;
+	        		}
+	        	}
+		}
+	BC_NOT_IMPL:
+        }
+        
+        if(mouse_pointer_hidden && key == GLFW_KEY_F5){
+        	char b = action != GLFW_RELEASE;
+        	if(b != keyF5){
+        		keyF5 = b;
+        		if(b){
+				int offset = 60;
+				if(version_id == version_id_0_9_5) offset = 56;
+				if(version_id == version_id_0_5_0) return; //offset = 40;
+
+				void* options = (void*) ((int)ninecraft_app + offset);
+				if(version_id == version_id_0_10_5) options = *(void**)((int)ninecraft_app + 252);
+
+				void* third_person = internal_dlsym(handle, "_ZN7Options6Option12THIRD_PERSONE");
+				void (*fn)(void*, void*, int) = internal_dlsym(handle, "_ZN7Options6toggleEPKNS_6OptionEi");
+				fn(options, third_person, keyF5); //last arg doesnt matter here
+        		}
+        	}
+        }
+        
         if (mouse_pointer_hidden && key == GLFW_KEY_LEFT_SHIFT) {
-            if (action == GLFW_PRESS) {
-                controller_states[0] = 1;
-            } else if (action == GLFW_RELEASE) {
-                controller_states[0] = 0;
-            }
+        	if(!opt_TOGGLE_SHIFT.value.asbool){
+			if(version_id == version_id_0_8_1){
+	        		int player = *(int*)(((int)ninecraft_app) + 3168);
+        			int moveinp = *(int*)(player + 3408);
+        			*(char*)(moveinp + 14) = (action != GLFW_RELEASE);
+			}else if(version_id == version_id_0_9_5){
+				sneaking_095 = (action != GLFW_RELEASE); //0.9 overrides vanilla sneaking
+			}else{
+				goto lshift_fallback;
+			}
+        	}else{
+			lshift_fallback:
+			if(version_id == version_id_0_9_5){
+				if(action == GLFW_PRESS) sneaking_095 = !sneaking_095;
+			}else{
+				if (action == GLFW_PRESS) {
+	        			controller_states[0] = 1;
+				} else if (action == GLFW_RELEASE) {
+					controller_states[0] = 0;
+				}
+			}
+        	}
         } else if (mouse_pointer_hidden && key == GLFW_KEY_T) {
             if (action == GLFW_PRESS) {
                 size_t minecraft_screenchooser_offset;
+		int screenid = 7;
+		char useScreenChooser = 1;
+
                 if (version_id == version_id_0_7_0) {
                     minecraft_screenchooser_offset = MINECRAFT_SCREENCHOOSER_OFFSET_0_7_0;
                 } else if (version_id == version_id_0_7_1) {
@@ -401,10 +547,43 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
                     minecraft_screenchooser_offset = MINECRAFT_SCREENCHOOSER_OFFSET_0_8_0;
                 } else if (version_id == version_id_0_8_1) {
                     minecraft_screenchooser_offset = MINECRAFT_SCREENCHOOSER_OFFSET_0_8_1;
-                } else {
-                    return;
-                }
-                ((void (*)(void *, int))internal_dlsym(handle, "_ZN13ScreenChooser9setScreenE8ScreenId"))((char *)ninecraft_app + minecraft_screenchooser_offset, 7);
+                } else if(version_id == version_id_0_9_5){
+			minecraft_screenchooser_offset = 408;
+			screenid = 5; //6 = start chat message with /
+		} else if(version_id == version_id_0_10_5){
+			useScreenChooser = 0;
+			void* chat = malloc(0xf0);
+			void (*constructor)(void*, int) = internal_dlsym(handle, "_ZN10ChatScreenC2Eb");
+			constructor(chat, 0);
+			((void (*) (void*, void*)) internal_dlsym(handle, "_ZN15MinecraftClient9setScreenEP6Screen"))(ninecraft_app, chat);
+		}else {
+			return;
+		}
+
+
+		if(useScreenChooser) ((void (*)(void *, int))internal_dlsym(handle, "_ZN13ScreenChooser9setScreenE8ScreenId"))(ninecraft_app + minecraft_screenchooser_offset, screenid);
+		
+                if(version_id == version_id_0_8_1){
+                	chatJustOpened = 1;
+                	int** guiScreen = *(int***)((int)ninecraft_app + 3184);
+                	void* buttonClicked = (void*) guiScreen[0][30];
+                	((void (*)(int**, int*)) buttonClicked)(guiScreen, guiScreen[24]);
+                }else if(version_id == version_id_0_7_6){
+			chatJustOpened = 1;
+			int** guiScreen = *(int***)((int)ninecraft_app + 3144);
+			void* buttonClicked = (void*) guiScreen[0][29];
+			((void (*)(int**, int*)) buttonClicked)(guiScreen, guiScreen[24]);
+		}else if(version_id == version_id_0_9_5){
+			chatJustOpened = 1;
+			int** guiScreen = *(int***)((int)ninecraft_app + 3200);
+			void* buttonClicked = (void*) guiScreen[0][32];
+			((void (*)(int**, int*)) buttonClicked)(guiScreen, guiScreen[36]);
+		}else if(version_id == version_id_0_10_5){
+			chatJustOpened = 1;
+			int** guiScreen = *(int***)((int)ninecraft_app + 108);
+			void* buttonClicked = (void*) guiScreen[0][32];
+			((void (*)(int**, int*)) buttonClicked)(guiScreen, guiScreen[53]);
+		}
             }
         } else if (version_id >= version_id_0_1_1 && key == GLFW_KEY_ESCAPE) {
             if (action == GLFW_PRESS) {
@@ -423,8 +602,8 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
 }
 
 void window_close_callback(GLFWwindow *window) {
-    audio_engine_destroy();
-    exit(0);
+	audio_engine_destroy();
+	exit(0);
 }
 
 void grab_mouse() {
@@ -684,6 +863,108 @@ void missing_hook() {
 #endif
 }
 
+ninecraft_options_t options = {
+    .options = NULL,
+    .length = 0,
+    .capasity = 0
+};
+
+
+bool LocalPlayer_isSneaking_hook_095(int this){
+	return sneaking_095;
+}
+
+void (*ControllerMoveInput_tick_real_095)(int, int);
+void ControllerMoveInput_tick_hook_095(int this, int player){
+	bool flight = 0;
+	bool tf = *(char*)(player + 3169);
+	if(*(char*)(player + 3169) && *(char*)(this + 0xf + 7)){ //isFlying && space
+		if(*(char*)(this + 0xf + 3) || *(char*)(this + 0xf + 4)){ //w || s
+			// *(char*)(player + 3169) = 0; //player doesnt fly -> no vanilla checks
+			// *(char*)(this+0xf+7) = 0;
+			flight = 1;
+		}
+	}
+
+	if(*(char*)(this + 0xf + 3)){ //w
+		*(float*)(this+0x8) = 1;
+	}else if(*(char*)(this + 0xf + 4)){ //s
+		*(float*)(this+0x8) = -1;
+	}
+	*(char*)(this + 32) = 0; //needed to make forward work
+	*(char*)(this + 33) = 0; //needed to make backward work
+	ControllerMoveInput_tick_real_095(this, player);
+
+	//for(int i = 0; i < 0xf+16; ++i) printf("%d ", *(char*)(this + i));
+	//printf("\n");
+	
+	if(tf){
+		*(char*)(this + 4 + 0xB) = glfwGetKey(_window, GLFW_KEY_SPACE) != GLFW_RELEASE;
+		*(char*)(this + 4 + 0xC) = glfwGetKey(_window, GLFW_KEY_LEFT_SHIFT) != GLFW_RELEASE;
+	}
+
+	if(flight){
+		*(char*)(player + 3169) = 1;
+	}else{
+		*(char*)(this + 4 + 0xB) = *(char*)(this + 0xf + 7) && *(char*)(player + 3169);
+		if(*(char*)(this + 0xf + 3) && !tf) {
+			*(char*)(this + 4 + 0xC) = 0;
+		}
+	}
+}
+
+void (*XperialPlayInput_tick_real_081)(int, int);
+void XperialPlayInput_tick_hook_081(int this, int player){
+	bool flight = false;
+
+	if(*(char*)(player + 3209) && *(char*)(this + 0xf + 7)){ //isFlying && space
+		if(*(char*)(this + 0xf + 3) || *(char*)(this + 0xf + 4)){ //w || s
+			*(char*)(player + 3209) = 0; //player doesnt fly -> no vanilla checks
+			flight = true;
+		}
+	}
+	
+	XperialPlayInput_tick_real_081(this, player);
+	
+	*(char*)(this + 4 + 0xB) = glfwGetKey(_window, GLFW_KEY_SPACE) != GLFW_RELEASE;
+	*(char*)(this + 4 + 0xC) = glfwGetKey(_window, GLFW_KEY_LEFT_SHIFT) != GLFW_RELEASE;
+	if(flight){
+		*(char*)(player + 3209) = 1;
+	}
+}
+
+void (*TextBox_keyPressed_real_081)(void* this, void* mc, int i);
+char Minecraft_useTouchscreen_095(void** mc){
+	void* screen = mc[800];
+	if(screen) return 1;
+	return 0;
+}
+char useTouchScreen_0105 = 0;
+void (*MinecraftClient__reloadInput_0105_real)(void** mc);
+
+/*char MinecraftClient_useController_0105(void** mc){
+	return 1;
+}*/
+
+char MinecraftClient_useTouchscreen_0105(void** mc){
+	void* screen = mc[27];
+	char ret = 0;
+	if(screen) {
+		ret = 1;
+	}
+	if(useTouchScreen_0105 != ret){
+		useTouchScreen_0105 = ret;
+		MinecraftClient__reloadInput_0105_real(mc);
+	}
+
+	return ret;
+}
+int Gui_getNumSlots_095(void* gui){
+	return 9;
+}
+
+int (*Gui_getNumSlots_0105)(void* gui) = Gui_getNumSlots_095;
+
 int main(int argc, char **argv) {
     printf("sizeof wchar: %d\n", sizeof(wchar_t));
     android_linker_init();
@@ -709,7 +990,7 @@ int main(int argc, char **argv) {
     if (stat("mods", &st) == -1) {
         mkdir("mods", 0700);
     }
-
+	readConfigFile();
     ninecraft_read_options_file(&platform_options, "options.txt");
     ninecraft_set_default_options(&platform_options, "options.txt");
 
@@ -758,13 +1039,11 @@ int main(int argc, char **argv) {
     add_custom_hook("__android_log_print", (void *)__android_log_print);
     stub_symbols(android_symbols, (void *)android_stub);
     stub_symbols(egl_symbols, (void *)egl_stub);
-
     add_custom_hook("SL_IID_VOLUME", &sles_iid_volume);
     add_custom_hook("SL_IID_ENGINE", &sles_iid_engine);
     add_custom_hook("SL_IID_BUFFERQUEUE", &sles_iid_bufferqueue);
     add_custom_hook("SL_IID_PLAY", &sles_iid_play);
     add_custom_hook("slCreateEngine", sles_create_engine);
-
     handle = load_library("libminecraftpe.so");
 
     if (!handle) {
@@ -944,6 +1223,96 @@ int main(int argc, char **argv) {
             return 1;
         }
     }
+    	
+	if(version_id == version_id_0_9_5){ //0.9.5: fix space not working in chat(and remove its function from other screens
+#ifdef __arm__
+		printf("0.9.5 arm: cant disable key_jump in screen\n");
+#else
+		unsigned char* method = internal_dlsym(handle, "_ZN6Screen10keyPressedEi");
+		method[155] = 0x90;
+		method[156] = 0x90;
+#endif
+	}
+	
+	if(version_id == version_id_0_7_6){
+		//0.7.6 x86: inv fix (it will not work in arm)
+#ifdef __arm__
+		printf("0.7.6 and arm: cant fix inv\n");
+#else
+		unsigned char* method = internal_dlsym(handle, "_ZN13ScreenChooser12createScreenE8ScreenId");
+		method[42] = 0x90; //jz      short loc_1193B8 -> nop nop -> use touch:: inv
+		method[43] = 0x90;
+#endif
+
+	}
+    	
+	if(opt_NO_KEYBOARD_SPACE_IN_CHAT.value.asbool){
+#ifdef __arm
+		printf("cant patch arm .so to include no keyboard space in chat patch!\n");
+#else
+		if(version_id == version_id_0_7_6){
+			unsigned char* method = internal_dlsym(handle, "_ZN10ChatScreen6renderEiif");
+			method[35] = 0xe9;
+			method[36] = 0x70;
+			method[37] = 0x01;
+			method[38] = 0x00;
+			method[39] = 0x00;
+
+			method = internal_dlsym(handle, "_ZN10ChatScreen26updateToggleKeyboardButtonEv");
+			method[248] = 0x90;
+			method[249] = 0x90;
+			
+			method = internal_dlsym(handle, "_ZN10ChatScreen24updateKeyboardVisibilityEv");
+			method[119] = 0x00;
+			method[128] = 0x00;
+
+		}else if(version_id == version_id_0_8_1){
+			unsigned char* method = internal_dlsym(handle, "_ZN10ChatScreen6renderEiif");
+			method[43] = 0xe9;
+			method[44] = 0x68;
+			method[45] = 0x01;
+			method[46] = 0x00;
+			method[47] = 0x00;
+
+			method = internal_dlsym(handle, "_ZN10ChatScreen26updateToggleKeyboardButtonEv");
+			method[248] = 0x90;
+			method[249] = 0x90;
+			
+			method = internal_dlsym(handle, "_ZN10ChatScreen24updateKeyboardVisibilityEv");
+			method[150] = 0x00;
+			method[158] = 0x00;
+		}else{
+			printf("no keyboard space in chat patch is not implemented for %d\n", version_id);
+		}
+#endif
+	}
+
+	if(version_id == version_id_0_9_5){
+#ifdef __arm__
+		printf("cant inject!\n");
+#else
+		unsigned char* method = internal_dlsym(handle, "_ZN9Minecraft14useTouchscreenEv");
+		DETOUR(method, Minecraft_useTouchscreen_095, true);
+		method = internal_dlsym(handle, "_ZN3Gui11getNumSlotsEv");
+		DETOUR(method, Gui_getNumSlots_095, true);
+		//printf("usecontroller: %x %x %x %x %x %x\n", *method, method[1], method[2], method[3], method[4], method[5]);
+#endif
+	}
+	if(version_id == version_id_0_10_5){
+#ifdef __arm__
+		printf("cant inject!\n");
+#else
+		MinecraftClient__reloadInput_0105_real = internal_dlsym(handle, "_ZN15MinecraftClient12_reloadInputEv");
+		unsigned char* method = internal_dlsym(handle, "_ZN15MinecraftClient14useTouchscreenEv");
+		DETOUR(method, MinecraftClient_useTouchscreen_0105, true);
+		method = internal_dlsym(handle, "_ZN3Gui11getNumSlotsEv");
+		DETOUR(method, Gui_getNumSlots_0105, true);
+		//method = internal_dlsym(handle, "_ZN15MinecraftClient13useControllerEv");
+		//DETOUR(method, MinecraftClient_useController_0105, true);
+#endif
+	}
+
+
 
     multitouch_setup_hooks(handle);
     keyboard_setup_hooks(handle);
@@ -955,7 +1324,7 @@ int main(int argc, char **argv) {
     controller_x_stick = (float *)internal_dlsym(handle, "_ZN10Controller12stickValuesXE");
     controller_y_stick = (float *)internal_dlsym(handle, "_ZN10Controller12stickValuesYE");
 
-    if (version_id >= version_id_0_6_0 && version_id <= version_id_0_9_5) {
+    if (version_id > version_id_0_7_6 && version_id <= version_id_0_9_5) {
         default_mouse_mode = GLFW_CURSOR_HIDDEN;
     }
 
@@ -1268,6 +1637,23 @@ int main(int argc, char **argv) {
         minecraft_isgrabbed_offset = MINECRAFT_ISGRABBED_OFFSET_0_1_0;
     }
 
+	if(version_id == version_id_0_9_5){
+		int** playervt = (int**)((int)internal_dlsym(handle, "_ZTV11LocalPlayer") + 8);
+		printf("'issneaking %p\n", playervt[44]);
+		playervt[44] = (int*) &LocalPlayer_isSneaking_hook_095;
+	}
+	
+	if (version_id == version_id_0_8_1) {
+		int** vtinput = (int**)((int)internal_dlsym(handle, "_ZTV15XperiaPlayInput") + 8);
+		XperialPlayInput_tick_real_081 = (void*) vtinput[2];
+		vtinput[2] = (int*) &XperialPlayInput_tick_hook_081;
+	}
+	if (version_id == version_id_0_9_5) {
+		int** vtinput = (int**)((int)internal_dlsym(handle, "_ZTV19ControllerMoveInput") + 8);
+		ControllerMoveInput_tick_real_095 = (void*) vtinput[2];
+		vtinput[2] = (int*) &ControllerMoveInput_tick_hook_095;
+	}
+
     while (true) {
         if (((bool *)ninecraft_app)[minecraft_isgrabbed_offset]) {
             if (!mouse_pointer_hidden) {
@@ -1283,6 +1669,29 @@ int main(int argc, char **argv) {
             controller_y_stick[1] = (float)(y_cam - 180.0) * 0.0055555557;
             controller_x_stick[1] = ((float)((x_cam - 483.0)) * 0.0020703934);
         }
+
+        if(additionalBuildChecks){
+        	if(version_id == version_id_0_8_1){
+        		int placeActionTimeout = *(int*)((int)ninecraft_app + 3332);
+
+        		if(placeActionTimeout){
+        			int tickDiff = *(unsigned int*)(ninecraft_app + 3336) - lastBuiltTick;
+
+        			if(tickDiff > 8){
+        				*(int*)((int)ninecraft_app + 3332) = 0;
+        				int state = glfwGetMouseButton(_window, GLFW_MOUSE_BUTTON_RIGHT);
+        				if (state == GLFW_PRESS)
+        				{
+        					mouse_click_callback(_window, GLFW_MOUSE_BUTTON_RIGHT, state, 0);
+        				}
+
+        			}
+
+        		}
+
+        	}
+        }
+
         if (version_id >= version_id_0_10_0) {
             minecraft_update(ninecraft_app);
         } else {
@@ -1290,7 +1699,7 @@ int main(int argc, char **argv) {
         }
 
         if (!mouse_pointer_hidden) {
-            if (version_id >= version_id_0_6_0 && version_id <= version_id_0_9_5) {
+            if (version_id > version_id_0_7_6 && version_id <= version_id_0_9_5) {
                 float inv_gui_scale = *((float *)internal_dlsym(handle, "_ZN3Gui11InvGuiScaleE"));
                 double xpos, ypos;
                 glfwGetCursorPos(_window, &xpos, &ypos);

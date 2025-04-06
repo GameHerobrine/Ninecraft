@@ -10,6 +10,7 @@
 #include <ninecraft/audio/audio_engine.h>
 #include <ninecraft/utils.h>
 #include <stb_image.h>
+#include <unistd.h>
 #ifdef _WIN32
 #include <direct.h>
 #endif
@@ -1258,5 +1259,5 @@ void AppPlatform_linux$vibrate(AppPlatform_linux *app_platform, int milliseconds
 }
 
 void AppPlatform_linux$destroy(AppPlatform_linux *app_platform) {
-    //puts("debug: AppPlatform_linux::destroy");
+    puts("debug: AppPlatform_linux::destroy");
 }

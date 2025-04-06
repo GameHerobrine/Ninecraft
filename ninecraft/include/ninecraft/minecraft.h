@@ -263,7 +263,7 @@
 #define NINECRAFTAPP_SIZE_0_1_0_TOUCH 0xddc
 #define NINECRAFTAPP_SIZE_0_1_0 0xdc8
 
-#if defined(__i386__) || defined(_M_IX86)
+#if 	defined(__i386__) || defined(_M_IX86)
 #define MINECRAFT_ISGRABBED_OFFSET_0_9_5 0xc88
 #define MINECRAFT_ISGRABBED_OFFSET_0_9_4 0xc9c
 #define MINECRAFT_ISGRABBED_OFFSET_0_9_3 0xc9c

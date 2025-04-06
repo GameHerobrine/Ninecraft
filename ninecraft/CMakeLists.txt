@@ -2,7 +2,7 @@ cmake_minimum_required (VERSION 3.1)
 
 project(ninecraft-core)
 
-file(GLOB_RECURSE SOURCE_FILES CONFIGURE_DEPENDS src/*.c)
+file(GLOB_RECURSE SOURCE_FILES CONFIGURE_DEPENDS src/*.c src/*.cpp)
 
 add_executable(ninecraft ${SOURCE_FILES})
 target_compile_definitions(ninecraft PRIVATE _GNU_SOURCE AL_LIBTYPE_STATIC)

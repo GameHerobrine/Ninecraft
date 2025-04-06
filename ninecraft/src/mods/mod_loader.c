@@ -1,9 +1,11 @@
+
 #include <stdlib.h>
 #include <ancmp/android_dirent.h>
 #include <ninecraft/mods/mod_loader.h>
 #include <string.h>
 #include <stdio.h>
 #include <ancmp/android_dlfcn.h>
+#include <unistd.h>
 #ifdef _WIN32
 #include <direct.h>
 #endif
