@@ -14,6 +14,8 @@
 #ifdef _WIN32
 #include <direct.h>
 #define popen _popen
+#else
+#include <unistd.h>
 #endif
 
 extern GLFWwindow *_window;

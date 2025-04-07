@@ -8,6 +8,8 @@
 #include <unistd.h>
 #ifdef _WIN32
 #include <direct.h>
+#else
+#include <unistd.h>
 #endif
 
 void **mod_handles = NULL;

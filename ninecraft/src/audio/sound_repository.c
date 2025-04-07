@@ -8,6 +8,8 @@
 #include <unistd.h>
 #ifdef _WIN32
 #include <direct.h>
+#else
+#include <unistd.h>
 #endif
 
 static ninecraft_sound_t ninecraft_sound_repository[] = {
