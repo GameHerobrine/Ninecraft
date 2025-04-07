@@ -965,10 +965,6 @@ int Gui_getNumSlots_095(void* gui){
 
 int (*Gui_getNumSlots_0105)(void* gui) = Gui_getNumSlots_095;
 
-#ifndef _WIN32
-extern int __cxa_atexit(void (*)(void*), void*, void*);
-#endif
-
 int main(int argc, char **argv) {
     printf("sizeof wchar: %d\n", sizeof(wchar_t));
     android_linker_init();
@@ -1048,10 +1044,6 @@ int main(int argc, char **argv) {
     add_custom_hook("SL_IID_BUFFERQUEUE", &sles_iid_bufferqueue);
     add_custom_hook("SL_IID_PLAY", &sles_iid_play);
     add_custom_hook("slCreateEngine", sles_create_engine);
-
-#ifndef _WIN32
-	add_custom_hook("__cxa_atexit", __cxa_atexit);
-#endif
 
     handle = load_library("libminecraftpe.so");
     if (!handle) {
