@@ -884,6 +884,96 @@ int Gui_getNumSlots_095(void* gui){
 	return 9;
 }
 
+
+#ifdef _WIN32
+#include <windows.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <direct.h>
+#else
+#include <strings.h>
+#include <pthread.h>
+#include <unistd.h>
+#include <sys/select.h>
+#include <netdb.h>
+#include <poll.h>
+#include <sys/time.h>
+#include <sys/uio.h>
+#endif
+#include <ancmp/android_socket.h>
+typedef struct {
+    char    *h_name;
+    char    **h_aliases;
+    int     h_addrtype;
+    int     h_length;
+    char    **h_addr_list;
+} android_hostent_t;
+static char h_name[256];
+static char h_addr_list_storage[35][16];
+static char h_aliases_storage[35][256];
+static char *h_addr_list[35];
+static char *h_aliases[35];
+static android_hostent_t android_host = {
+    h_name,
+    h_aliases,
+    ANDROID_AF_INET,
+    4,
+    h_addr_list
+};
+android_hostent_t *ancmp_new_gethostbyname(const char *name) {
+    struct addrinfo *info;
+    struct addrinfo hints;
+    size_t cnl;
+
+    if (!name) {
+        return NULL;
+    }
+
+    memset(&hints, 0, sizeof(hints));
+    
+    hints.ai_flags = AI_CANONNAME;
+
+    cnl = strlen(name) + 1;
+    memcpy(h_name, name, cnl <= 256 ? cnl : 256);
+    h_name[255] = '\0';
+    
+    if(getaddrinfo(name, NULL, &hints, &info) == 0) {
+        int i;
+        struct addrinfo *original_info = info;
+        for (i = 0; (i < 34) && (info != NULL); (++i), (info = info->ai_next)) {
+            for (;;) {
+                if (info == NULL) {
+                    break;
+                }
+                if (info->ai_family == AF_INET) {
+                    break;
+                }
+                info = info->ai_next;
+            }
+            if (info == NULL) {
+                break;
+            }
+
+            if (info->ai_canonname) {
+                cnl = strlen(info->ai_canonname) + 1;
+                memcpy(h_aliases_storage[i], info->ai_canonname, cnl <= 256 ? cnl : 256);
+                h_aliases_storage[i][255] = '\0';
+            } else {
+                h_aliases_storage[i][0] = '\0';
+            }
+            h_aliases[i] = h_aliases_storage[i];
+
+            memcpy(h_addr_list_storage[i], &((struct sockaddr_in *)info->ai_addr)->sin_addr, sizeof(struct in_addr));
+            h_addr_list[i] = h_addr_list_storage[i];
+        }
+        freeaddrinfo(original_info);
+        h_addr_list[i] = NULL;
+        h_aliases[i] = NULL;
+        return &android_host;
+    }
+    return NULL;
+}
+
 int (*Gui_getNumSlots_0105)(void* gui) = Gui_getNumSlots_095;
 
 int main(int argc, char **argv) {
@@ -954,6 +1044,8 @@ int main(int argc, char **argv) {
     gladLoadGL(glfwGetProcAddress);
 
     audio_engine_init();
+
+	add_custom_hook("gethostbyname", ancmp_new_gethostbyname);
 
     gles_hook();
     missing_hook();
